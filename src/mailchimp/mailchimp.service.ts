@@ -29,10 +29,7 @@ export class MailchimpService {
     //   console.log('r', r);
     // });
 
-    // this.getAllCampaigns().then((r) => {
-    //   console.log(r);
-    //   console.log('****************');
-    // });
+    // this.getAllCampaigns();
   }
 
   async abc() {
@@ -47,11 +44,11 @@ export class MailchimpService {
       fromName,
       replyTo,
       subject,
-      listId,
+      '61a139d91ec1cbf4ce96873daa3ae483',
     );
     console.log('campaingId', campaignId);
-    await this.setCampaignContent(campaignId, htmlContent);
-    await this.sendCampaign(campaignId);
+    // await this.setCampaignContent(campaignId, htmlContent);
+    // await this.sendCampaign(campaignId);
   }
 
   async updateCampaignDetails(
@@ -59,7 +56,7 @@ export class MailchimpService {
     subjectLine: string,
     replyTo: string,
     htmlContent: string,
-  ): Promise<void> {
+  ) {
     // Update campaign settings
     const settingsUrl = `https://us22.api.mailchimp.com/3.0/campaigns/${campaignId}`;
     const settingsPayload = {
@@ -104,8 +101,40 @@ export class MailchimpService {
 
       console.log('Campaign details updated successfully');
     } catch (error) {
-      console.error('Failed to update campaign details:', error);
+      console.error('Failed to update campaign details:');
       throw new Error('Failed to update campaign details');
+    }
+  }
+
+  async sendTestEmail(
+    campaignId: string,
+    testEmails: string[],
+    sendType: string = 'html',
+  ): Promise<void> {
+    const url = `https://us22.api.mailchimp.com/3.0/campaigns/${campaignId}/actions/test`;
+
+    const data = {
+      test_emails: testEmails,
+      send_type: sendType, // Can be "html" or "plaintext"
+    };
+
+    try {
+      await lastValueFrom(
+        this.httpService.post(url, data, {
+          auth: {
+            username: 'yougal',
+            password: '4aa193346a4fbd101ad77fa9789282ca-us22',
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      console.log('Test email sent successfully');
+    } catch (error) {
+      console.error('Failed to send test email');
+      throw new Error('Failed to send test email');
     }
   }
 
@@ -160,6 +189,7 @@ export class MailchimpService {
       throw new Error('Failed to add subscriber');
     }
   }
+
   async createCampaign(
     fromName: string,
     replyTo: string,
@@ -197,7 +227,7 @@ export class MailchimpService {
     campaignId: string,
     htmlContent: string,
   ): Promise<void> {
-    const url = `https://${process.env.MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns/${campaignId}/content`;
+    const url = `https://us22.api.mailchimp.com/3.0/campaigns/${campaignId}/content`;
 
     await lastValueFrom(
       this.httpService.put(
@@ -205,8 +235,8 @@ export class MailchimpService {
         { html: htmlContent },
         {
           auth: {
-            username: 'anystring',
-            password: process.env.MAILCHIMP_API_KEY,
+            username: 'yougal',
+            password: '4aa193346a4fbd101ad77fa9789282ca-us22',
           },
           headers: {
             'Content-Type': 'application/json',
@@ -217,7 +247,7 @@ export class MailchimpService {
   }
 
   async sendCampaign(campaignId: string): Promise<void> {
-    const url = `https://${process.env.MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/campaigns/${campaignId}/actions/send`;
+    const url = `https://us22.api.mailchimp.com/3.0/campaigns/${campaignId}/actions/send`;
 
     await lastValueFrom(
       this.httpService.post(
@@ -225,8 +255,8 @@ export class MailchimpService {
         {},
         {
           auth: {
-            username: 'anystring',
-            password: process.env.MAILCHIMP_API_KEY,
+            username: 'yougal',
+            password: '4aa193346a4fbd101ad77fa9789282ca-us22',
           },
           headers: {
             'Content-Type': 'application/json',
@@ -234,36 +264,5 @@ export class MailchimpService {
         },
       ),
     );
-  }
-  async sendTestEmail(
-    campaignId: string,
-    testEmails: string[],
-    sendType: string = 'plaintext',
-  ): Promise<void> {
-    const url = `https://us22.api.mailchimp.com/3.0/campaigns/${campaignId}/actions/test`;
-
-    const data = {
-      test_emails: testEmails,
-      send_type: sendType, // Can be "html" or "plaintext"
-    };
-
-    try {
-      await lastValueFrom(
-        this.httpService.post(url, data, {
-          auth: {
-            username: 'Yougal kumar ',
-            password: '4aa193346a4fbd101ad77fa9789282ca-us22',
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
-
-      console.log('Test email sent successfully');
-    } catch (error) {
-      console.error('Failed to send test email', error);
-      throw new Error('Failed to send test email');
-    }
   }
 }

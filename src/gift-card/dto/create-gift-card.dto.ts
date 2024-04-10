@@ -25,6 +25,8 @@ class Delivery {
   deliveryTime: string;
   @IsString()
   deliveryDate: string;
+  @IsBoolean()
+  deliverNow: boolean;
 }
 
 export class CreateGiftCardDto {

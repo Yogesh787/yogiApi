@@ -23,7 +23,10 @@ class Delivery {
   deliveryTime: string;
   @Prop({ type: String })
   deliveryDate: string;
+  @Prop({ type: Boolean })
+  deliverNow: boolean;
 }
+
 @Schema({ timestamps: true })
 export class GiftCard {
   @Prop({ type: String })
@@ -32,11 +35,13 @@ export class GiftCard {
   amount: number;
   @Prop({ type: From, required: true })
   from: From;
-  @Prop({ type: To, required: true })
+  @Prop({ type: To })
   to: To;
   @Prop({ type: Delivery, required: true })
   delivery: Delivery;
   @Prop({ type: String, required: true })
   giftCardNumber: string;
+  @Prop({ type: Boolean })
+  isDelivered: boolean;
 }
 export const GiftCardSchema = SchemaFactory.createForClass(GiftCard);

@@ -7,5 +7,6 @@ import { HttpModule } from '@nestjs/axios';
   imports: [HttpModule],
   controllers: [MailchimpController],
   providers: [MailchimpService],
+  exports: [MailchimpService],
 })
 export class MailchimpModule {}

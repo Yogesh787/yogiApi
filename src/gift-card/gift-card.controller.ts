@@ -17,6 +17,7 @@ export class GiftCardController {
 
   @Post('gift-card/create')
   create(@Body() createGiftCardDto: CreateGiftCardDto) {
+    console.log('create');
     return this.giftCardService.create(createGiftCardDto);
   }
 
