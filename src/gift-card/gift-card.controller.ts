@@ -1,19 +1,16 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Req } from '@nestjs/common';
 import { GiftCardService } from './gift-card.service';
 import { CreateGiftCardDto } from './dto/create-gift-card.dto';
-import { UpdateGiftCardDto } from './dto/update-gift-card.dto';
+import * as process from 'node:process';
 
 @Controller()
 export class GiftCardController {
   constructor(private readonly giftCardService: GiftCardService) {}
+
+  @Get('gift-card/create')
+  findAll() {
+    return this.giftCardService.findAll();
+  }
 
   @Post('gift-card/create')
   create(@Body() createGiftCardDto: CreateGiftCardDto) {
@@ -26,21 +23,23 @@ export class GiftCardController {
     return this.giftCardService.findOneByGiftCardNumber(number);
   }
 
-  // @Get('gift-cards')
-  // findAll() {
-  //   return this.giftCardService.findAll();
-  // }
+  @Post('gift-card/payment')
+  payment(
+    @Body() data: { giftCardNumber: string; amount: number },
+    @Req() req: any,
+  ) {
+    if (req.headers.password !== process.env.PASSWORD)
+      throw new Error('Invalid password');
+    return this.giftCardService.makePayment(data.giftCardNumber, data.amount);
+  }
 
-  // @Patch('gift-card/:id')
-  // update(
-  //   @Param('id') id: string,
-  //   @Body() updateGiftCardDto: UpdateGiftCardDto,
-  // ) {
-  //   return this.giftCardService.update(id, updateGiftCardDto);
-  // }
-
-  // @Delete('gift-card/:id')
-  // remove(@Param('id') id: string) {
-  //   return this.giftCardService.remove(id);
-  // }
+  @Post('gift-card/refund')
+  refund(
+    @Body() data: { giftCardNumber: string; amount: number },
+    @Req() req: any,
+  ) {
+    if (req.headers.password !== process.env.PASSWORD)
+      throw new Error('Invalid password');
+    return this.giftCardService.refund(data.giftCardNumber, data.amount);
+  }
 }

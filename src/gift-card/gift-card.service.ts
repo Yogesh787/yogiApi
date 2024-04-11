@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { CreateGiftCardDto } from './dto/create-gift-card.dto';
-import { UpdateGiftCardDto } from './dto/update-gift-card.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { GiftCard } from './schema/gift-card.schema';
+import { GiftCard, PaymentType } from './schema/gift-card.schema';
 import * as schedule from 'node-schedule';
 import { MailchimpService } from '../mailchimp/mailchimp.service';
 import { createMailTemplateSchema } from './schema/mailTemplate';
@@ -14,10 +13,8 @@ export class GiftCardService {
     @InjectModel(GiftCard.name) private giftCardModel: Model<GiftCard>,
     private readonly mailchimpService: MailchimpService,
   ) {
-    // this.fun();
     this.ifNotDelivered();
   }
-  campaignId = '2edffce556';
 
   async ifNotDelivered() {
     const giftCards = await this.giftCardModel.find({ isDelivered: false });
@@ -95,6 +92,7 @@ export class GiftCardService {
     const create = await this.giftCardModel.create({
       giftCardNumber: result,
       isDelivered: false,
+      balance: createGiftCardDto.amount,
       ...createGiftCardDto,
     });
     if (!create) throw new Error('Gift Card not created');
@@ -140,13 +138,17 @@ export class GiftCardService {
     code: string,
   ) {
     await this.mailchimpService.updateCampaignDetails(
-      this.campaignId,
+      process.env.CAMPAIGN_ID,
       'New Subject Line',
       email,
       createMailTemplateSchema(recipientName, amount, code),
     );
     console.log(email);
-    await this.mailchimpService.sendTestEmail(this.campaignId, [email], 'html');
+    await this.mailchimpService.sendTestEmail(
+      process.env.CAMPAIGN_ID,
+      [email],
+      'html',
+    );
     await this.giftCardModel.findOneAndUpdate(
       { _id: id },
       { isDelivered: true },
@@ -182,17 +184,42 @@ export class GiftCardService {
     return this.giftCardModel.findOne({ giftCardNumber: number });
   }
 
-  // findAll() {
-  //   return this.giftCardModel.find();
-  // }
+  async makePayment(giftCardNumber: string, amount: number) {
+    const giftCard = await this.giftCardModel.findOne({
+      giftCardNumber: giftCardNumber,
+    });
+    console.log(giftCard, 'giftCard');
+    if (!giftCard) throw new Error('Gift Card not found');
+    if (giftCard.balance < amount) throw new Error('Insufficient balance');
+    if (amount <= 0) throw new Error('Invalid amount');
+    return this.giftCardModel.findOneAndUpdate(
+      { giftCardNumber: giftCardNumber },
+      {
+        $push: { payments: { amount, type: PaymentType.payment } },
+        balance: giftCard.balance - amount,
+      },
+      { new: true },
+    );
+  }
 
-  // update(id: string, updateGiftCardDto: UpdateGiftCardDto) {
-  //   return this.giftCardModel.findOneAndUpdate({ _id: id }, updateGiftCardDto, {
-  //     new: true,
-  //   });
-  // }
-  //
-  // remove(id: string) {
-  //   return this.giftCardModel.findOneAndDelete({ _id: id });
-  // }
+  async refund(giftCardNumber: string, amount: number) {
+    const giftCard = await this.giftCardModel.findOne({
+      giftCardNumber: giftCardNumber,
+    });
+    if (giftCard.balance < amount) throw new Error('Insufficient balance');
+    if (!giftCard) throw new Error('Gift Card not found');
+    if (amount <= 0) throw new Error('Invalid amount');
+    return this.giftCardModel.findOneAndUpdate(
+      { giftCardNumber: giftCardNumber },
+      {
+        $push: { payments: { amount, type: PaymentType.refund } },
+        balance: giftCard.balance - amount,
+      },
+      { new: true },
+    );
+  }
+
+  findAll() {
+    return this.giftCardModel.find();
+  }
 }

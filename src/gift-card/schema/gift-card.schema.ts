@@ -1,5 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
+export enum PaymentType {
+  refund = 'refund',
+  payment = 'payment',
+}
+
 class From {
   @Prop({ type: String, required: true })
   name: string;
@@ -27,6 +32,13 @@ class Delivery {
   deliverNow: boolean;
 }
 
+class Payment {
+  @Prop({ type: Number })
+  amount: number;
+  @Prop({ type: String, enum: PaymentType })
+  type: PaymentType;
+}
+
 @Schema({ timestamps: true })
 export class GiftCard {
   @Prop({ type: String })
@@ -43,5 +55,9 @@ export class GiftCard {
   giftCardNumber: string;
   @Prop({ type: Boolean })
   isDelivered: boolean;
+  @Prop([{ type: Payment }])
+  payments: Payment[];
+  @Prop({ type: Number })
+  balance: number;
 }
 export const GiftCardSchema = SchemaFactory.createForClass(GiftCard);
