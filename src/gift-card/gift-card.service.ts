@@ -15,7 +15,7 @@ export class GiftCardService {
     private readonly mailchimpService: MailchimpService,
   ) {
     // this.fun();
-    // this.ifNotDelivered();
+    this.ifNotDelivered();
   }
   campaignId = '2edffce556';
 
@@ -85,7 +85,6 @@ export class GiftCardService {
   }
 
   async create(createGiftCardDto: CreateGiftCardDto) {
-    // console.log(createGiftCardDto);
     let result = '';
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     const charactersLength = characters.length;
@@ -130,6 +129,7 @@ export class GiftCardService {
         await this.deliverLater(create, create.to.email, create.to.name);
       }
     }
+    return create;
   }
 
   async sendMail(
@@ -178,21 +178,21 @@ export class GiftCardService {
     );
   }
 
-  findAll() {
-    return this.giftCardModel.find();
-  }
-
   findOneByGiftCardNumber(number: string) {
     return this.giftCardModel.findOne({ giftCardNumber: number });
   }
 
-  update(id: string, updateGiftCardDto: UpdateGiftCardDto) {
-    return this.giftCardModel.findOneAndUpdate({ _id: id }, updateGiftCardDto, {
-      new: true,
-    });
-  }
+  // findAll() {
+  //   return this.giftCardModel.find();
+  // }
 
-  remove(id: string) {
-    return this.giftCardModel.findOneAndDelete({ _id: id });
-  }
+  // update(id: string, updateGiftCardDto: UpdateGiftCardDto) {
+  //   return this.giftCardModel.findOneAndUpdate({ _id: id }, updateGiftCardDto, {
+  //     new: true,
+  //   });
+  // }
+  //
+  // remove(id: string) {
+  //   return this.giftCardModel.findOneAndDelete({ _id: id });
+  // }
 }

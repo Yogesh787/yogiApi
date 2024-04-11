@@ -21,26 +21,26 @@ export class GiftCardController {
     return this.giftCardService.create(createGiftCardDto);
   }
 
-  @Get('gift-cards')
-  findAll() {
-    return this.giftCardService.findAll();
-  }
-
   @Get('gift-card/number/:number')
   findOneByGiftCardNumber(@Param('number') number: string) {
     return this.giftCardService.findOneByGiftCardNumber(number);
   }
 
-  @Patch('gift-card/:id')
-  update(
-    @Param('id') id: string,
-    @Body() updateGiftCardDto: UpdateGiftCardDto,
-  ) {
-    return this.giftCardService.update(id, updateGiftCardDto);
-  }
+  // @Get('gift-cards')
+  // findAll() {
+  //   return this.giftCardService.findAll();
+  // }
 
-  @Delete('gift-card/:id')
-  remove(@Param('id') id: string) {
-    return this.giftCardService.remove(id);
-  }
+  // @Patch('gift-card/:id')
+  // update(
+  //   @Param('id') id: string,
+  //   @Body() updateGiftCardDto: UpdateGiftCardDto,
+  // ) {
+  //   return this.giftCardService.update(id, updateGiftCardDto);
+  // }
+
+  // @Delete('gift-card/:id')
+  // remove(@Param('id') id: string) {
+  //   return this.giftCardService.remove(id);
+  // }
 }
