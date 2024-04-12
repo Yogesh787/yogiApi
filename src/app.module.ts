@@ -4,6 +4,7 @@ import { MailchimpModule } from './mailchimp/mailchimp.module';
 import { DbModule } from './database/db.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     GiftCardModule,
     MailchimpModule,
     DbModule,
+    PaymentModule,
   ],
   controllers: [],
   providers: [],
