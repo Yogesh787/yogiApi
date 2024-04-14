@@ -1,6 +1,6 @@
-import { Controller, Get, Param, Post, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
 import { PaymentService } from './payment.service';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 
 @Controller('payment')
 export class PaymentController {
@@ -13,14 +13,21 @@ export class PaymentController {
   //   res.redirect(url.redirect_url);
   // }
 
-  @Get('callback')
-  async paymentCallback(@Res() res: Response) {
-    console.log('get');
-    console.log('res', res);
-  }
+  // @Get('/:orderId/status')
+  // async statusCheck(@Param('orderId') orderId: string, @Res() res: Response) {
+  //   console.log('statusCheck', orderId);
+  //   const x = await this.paymentService.statusCheck(orderId);
+  //   if (x.status === 'settled') {
+  //     res.status(200).send(x);
+  //   }
+  //   res.status(400).send(x);
+  //   // console.log('x', x);
+  //   // return x;
+  // }
 
-  @Get(':oderId')
-  async statusCheck(@Param('orderId') orderId: string) {
-    return this.paymentService.statusCheck(orderId);
-  }
+  // @Get('callback')
+  // async paymentCallback(@Req() req: Request) {
+  //   console.log('get');
+  //   console.log('res', req);
+  // }
 }

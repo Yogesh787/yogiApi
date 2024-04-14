@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Body, Param, Req, Res } from '@nestjs/common';
 import { GiftCardService } from './gift-card.service';
-import { CreateGiftCardDto } from './dto/create-gift-card.dto';
 import * as process from 'node:process';
 import { Response } from 'express';
 
@@ -8,10 +7,10 @@ import { Response } from 'express';
 export class GiftCardController {
   constructor(private readonly giftCardService: GiftCardService) {}
 
-  @Get('gift-cards')
-  findAll() {
-    return this.giftCardService.findAll();
-  }
+  // @Get('gift-cards')
+  // findAll() {
+  //   return this.giftCardService.findAll();
+  // }
 
   @Post('gift-card/create')
   async create(@Body() createGiftCardDto: any, @Res() res: Response) {
@@ -26,9 +25,14 @@ export class GiftCardController {
     return this.giftCardService.findOneByGiftCardNumber(number);
   }
 
-  @Get('status/:oderId')
-  async statusCheck(@Param('orderId') orderId: string) {
-    return this.giftCardService.statusCheck(orderId);
+  @Get('status/:orderId')
+  async statusCheck(@Param('orderId') orderId: string, @Res() res: Response) {
+    // return this.giftCardService.statusCheck(orderId);
+    const x = await this.giftCardService.statusCheck(orderId);
+    if (x.status === 'settled') {
+      res.status(200).send(x);
+    }
+    res.status(400).send(x);
   }
 
   @Post('gift-card/payment')

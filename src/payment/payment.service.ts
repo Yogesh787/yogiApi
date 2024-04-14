@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import * as CryptoJS from 'crypto-js';
 import * as FormData from 'form-data';
@@ -33,7 +33,7 @@ export class PaymentService {
     formData.append('payer_first_name', 'Mohamed');
     formData.append('payer_last_name', 'Ayadi');
     formData.append('payer_address', '156 East 2nd Street');
-    formData.append('req_token', 'Y');
+    formData.append('req_token', 'N');
     formData.append('payer_country', 'NY');
     formData.append('payer_city', 'New York');
     formData.append('payer_zip', '10009');
@@ -42,7 +42,8 @@ export class PaymentService {
     formData.append('payer_ip', '45.130.83.149');
     formData.append(
       'term_url_3ds',
-      `http://192.168.10.210:8080/burger-craft/giftCards/`,
+      `http://192.168.10.210:8080/burger-craft/giftCards/${orderNumber}`,
+      // `http://192.168.10.210:5197/payment/callback`,
     );
     formData.append('auth', 'N');
     formData.append('recurring_init', 'N');
@@ -102,9 +103,10 @@ export class PaymentService {
       });
     if (response) {
       console.log('*********', response?.data);
-      return response?.data;
+      // return response?.data;
+      return { status: response?.data?.responseBody.status };
     } else {
-      console.log(response);
+      console.log('error', response);
     }
   }
 }

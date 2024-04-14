@@ -113,6 +113,19 @@ export class GiftCardService {
     return result;
   }
 
+  async statusCheck(orderId: string) {
+    const status = await this.payment.statusCheck(orderId);
+    console.log(status, 'status');
+    if (status.status === 'settled') {
+      const giftCard = await this.giftCardModel.findOne({
+        transactionId: orderId,
+      });
+      // await this.createGiftCard(giftCard);
+      console.log(giftCard, 'giftCard');
+    }
+    return status;
+  }
+
   async createGiftCard(giftCard) {
     if (giftCard.from.sendToMyself) {
       console.log(1);
@@ -206,19 +219,6 @@ export class GiftCardService {
     return this.giftCardModel.findOne({ giftCardNumber: number });
   }
 
-  async statusCheck(orderId: string) {
-    const status = await this.payment.statusCheck(orderId);
-    console.log(status, 'status');
-    if (status.responseBody.status === 'settled') {
-      const giftCard = await this.giftCardModel.findOne({
-        transactionId: orderId,
-      });
-      await this.createGiftCard(giftCard);
-      console.log(giftCard, 'giftCard');
-    }
-    return 'payment incomplete';
-  }
-
   async makePayment(giftCardNumber: string, amount: number) {
     const giftCard = await this.giftCardModel.findOne({
       giftCardNumber: giftCardNumber,
@@ -254,7 +254,7 @@ export class GiftCardService {
     );
   }
 
-  findAll() {
-    return this.giftCardModel.find();
-  }
+  // findAll() {
+  //   return this.giftCardModel.find();
+  // }
 }
