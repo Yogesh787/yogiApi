@@ -1,4 +1,4 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Post, Res } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { Response } from 'express';
 
@@ -13,8 +13,20 @@ export class PaymentController {
     res.redirect(url.redirect_url);
   }
 
+  @Post('callback')
+  async paymentCallback1(@Res() res: Response) {
+    console.log('post');
+    console.log('res', res);
+  }
+
   @Get('callback')
   async paymentCallback(@Res() res: Response) {
+    console.log('get');
     console.log('res', res);
+  }
+
+  @Get('status')
+  async statusCheck() {
+    return this.paymentService.statusCheck();
   }
 }
