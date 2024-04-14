@@ -1,26 +1,34 @@
-import { Controller, Get, Post, Body, Param, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Req, Res } from '@nestjs/common';
 import { GiftCardService } from './gift-card.service';
 import { CreateGiftCardDto } from './dto/create-gift-card.dto';
 import * as process from 'node:process';
+import { Response } from 'express';
 
 @Controller()
 export class GiftCardController {
   constructor(private readonly giftCardService: GiftCardService) {}
 
-  @Get('gift-card/create')
+  @Get('gift-cards')
   findAll() {
     return this.giftCardService.findAll();
   }
 
   @Post('gift-card/create')
-  create(@Body() createGiftCardDto: CreateGiftCardDto) {
+  async create(@Body() createGiftCardDto: any, @Res() res: Response) {
     console.log('create');
-    return this.giftCardService.create(createGiftCardDto);
+    const url = await this.giftCardService.create(createGiftCardDto);
+    console.log('url', url.redirect_url);
+    res.status(301).redirect(url.redirect_url);
   }
 
   @Get('gift-card/number/:number')
   findOneByGiftCardNumber(@Param('number') number: string) {
     return this.giftCardService.findOneByGiftCardNumber(number);
+  }
+
+  @Get('status/:oderId')
+  async statusCheck(@Param('orderId') orderId: string) {
+    return this.giftCardService.statusCheck(orderId);
   }
 
   @Post('gift-card/payment')

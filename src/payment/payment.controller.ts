@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { Response } from 'express';
 
@@ -6,18 +6,12 @@ import { Response } from 'express';
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
-  @Get('')
-  async initiatePayment2(@Res() res: Response) {
-    const url = await this.paymentService.initiatePayment();
-    console.log(url);
-    res.redirect(url.redirect_url);
-  }
-
-  @Post('callback')
-  async paymentCallback1(@Res() res: Response) {
-    console.log('post');
-    console.log('res', res);
-  }
+  // @Get('')
+  // async initiatePayment2(@Res() res: Response) {
+  //   const url = await this.paymentService.initiatePayment(3);
+  //   console.log(url);
+  //   res.redirect(url.redirect_url);
+  // }
 
   @Get('callback')
   async paymentCallback(@Res() res: Response) {
@@ -25,8 +19,8 @@ export class PaymentController {
     console.log('res', res);
   }
 
-  @Get('status')
-  async statusCheck() {
-    return this.paymentService.statusCheck();
+  @Get(':oderId')
+  async statusCheck(@Param('orderId') orderId: string) {
+    return this.paymentService.statusCheck(orderId);
   }
 }
