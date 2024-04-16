@@ -24,6 +24,8 @@ export class Domain {
   privateKey: string;
   @Prop({ type: String })
   csr: string;
+  @Prop({ type: String })
+  accountUrl: string;
 }
 
 export const DomainSchema = SchemaFactory.createForClass(Domain);

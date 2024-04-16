@@ -26,6 +26,18 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Connect to ec2 instance
+
+```bash
+$ ssh -i "omnimenu-pwa.pem" ec2-user@ec2-51-112-73-66.me-central-1.compute.amazonaws.com
+```
+## Install nginx & create symlink
+
+```bash
+$ sudo amazon-linux-extras install nginx1.12
+$ ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/
+```
+
 ## Installation
 
 ```bash

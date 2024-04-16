@@ -34,16 +34,19 @@ export class AcmeService implements OnModuleInit {
 
   async initializeAcmeClient() {
     const accountKey = await acme.forge.createPrivateKey();
+    console.log(1);
     this.client = new acme.Client({
       directoryUrl: acme.directory.letsencrypt.production, // Use staging for testing
       accountKey,
     });
+    console.log(2);
     const account = await this.findLatestUser();
-    console.log(account, 'account');
+    console.log(3);
     await this.client.updateAccount({
       ...account,
       termsOfServiceAgreed: true,
     });
+    console.log(4);
   }
 
   async createUser() {
@@ -78,12 +81,13 @@ export class AcmeService implements OnModuleInit {
     return res;
   }
 
-  public async addDomain(name: string) {
+  public async addDomain(name: string, accountUrl: string) {
     console.log(name);
     const domain = await this.domainModel.create({
       name: name,
       userId: '66143ed12bdde3d8cf62d0aa',
       certificateStatus: 'pending',
+      accountUrl: accountUrl,
     });
     if (!domain) throw new Error('Domain not created');
     console.log(domain);
@@ -143,6 +147,7 @@ export class AcmeService implements OnModuleInit {
       const result = await this.executeScript(
         domain.name,
         'src/script/script.sh',
+        domain.accountUrl,
       );
       console.log('Script executed successfully:', result);
     } catch (error) {
@@ -153,6 +158,7 @@ export class AcmeService implements OnModuleInit {
       const result = await this.executeScript(
         domain.name,
         'src/script/nginx.sh',
+        domain.accountUrl,
       );
       console.log('Script executed successfully:', result);
     } catch (error) {
@@ -190,6 +196,7 @@ export class AcmeService implements OnModuleInit {
         const result = await this.executeScript(
           challenge.token,
           'src/script/token.sh',
+          domain.accountUrl,
         );
         console.log('Script executed successfully:', result);
       } catch (error) {
@@ -219,11 +226,15 @@ export class AcmeService implements OnModuleInit {
     return certificate;
   }
 
-  private async executeScript(domainName: string, path: string): Promise<any> {
+  private async executeScript(
+    domainName: string,
+    path: string,
+    accountUrl: string,
+  ): Promise<any> {
     console.log(path, 'path');
     console.log(domainName, 'domainName');
     const x = await new Promise((resolve, reject) => {
-      exec(`${path} ${domainName}`, (error, stdout, stderr) => {
+      exec(`${path} ${domainName} ${accountUrl}`, (error, stdout, stderr) => {
         if (error) {
           console.error(`exec error: ${error}`);
           reject(error);

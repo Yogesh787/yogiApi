@@ -11,9 +11,9 @@ export class DomainController {
   // }
 
   @Post('create')
-  async addDomain(@Body() domainData: { name: string }) {
+  async addDomain(@Body() domainData: { name: string; accountUrl: string }) {
     console.log(domainData);
-    return this.acmeService.addDomain(domainData.name);
+    return this.acmeService.addDomain(domainData.name, domainData.accountUrl);
   }
 
   @Get('')
