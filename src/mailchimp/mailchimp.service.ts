@@ -4,7 +4,9 @@ import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class MailchimpService {
-  constructor(private httpService: HttpService) {}
+  constructor(private httpService: HttpService) {
+    // this.getAllCampaigns();
+  }
 
   async updateCampaignDetails(
     campaignId: string,
@@ -89,34 +91,34 @@ export class MailchimpService {
       console.log('Test email sent successfully');
     } catch (error) {
       console.error('Failed to send test email');
-      throw new Error('Failed to send test email');
+      // throw new Error('Failed to send test email');
     }
   }
 
-  // async getAllCampaigns(): Promise<any> {
-  //   const url = process.env.API_URL;
-  //
-  //   try {
-  //     const response = await lastValueFrom(
-  //       this.httpService.get(url, {
-  //         auth: {
-  //           username: process.env.USER_NAME,
-  //           password: process.env.MAILCHIMP_API_KEY,
-  //         },
-  //         headers: {
-  //           'Content-Type': 'application/json',
-  //         },
-  //       }),
-  //     );
-  //
-  //     console.log(response);
-  //
-  //     return response.data; // This will include all campaign data, including IDs
-  //   } catch (error) {
-  //     console.error('Failed to fetch campaigns:', error);
-  //     throw new Error('Failed to fetch campaigns');
-  //   }
-  // }
+  async getAllCampaigns(): Promise<any> {
+    const url = process.env.API_URL;
+
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get(url, {
+          auth: {
+            username: process.env.USER_NAME,
+            password: process.env.MAILCHIMP_API_KEY,
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      console.log(response);
+
+      return response.data; // This will include all campaign data, including IDs
+    } catch (error) {
+      console.error('Failed to fetch campaigns:', error);
+      throw new Error('Failed to fetch campaigns');
+    }
+  }
 
   // async addSubscriber(email: string): Promise<any> {
   //   const data = {

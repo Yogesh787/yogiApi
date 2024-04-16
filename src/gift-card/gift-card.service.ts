@@ -15,7 +15,7 @@ export class GiftCardService {
     private readonly mailchimpService: MailchimpService,
     private readonly payment: PaymentService,
   ) {
-    // this.ifNotDelivered();
+    this.ifNotDelivered();
   }
 
   async ifNotDelivered() {
@@ -120,7 +120,8 @@ export class GiftCardService {
       const giftCard = await this.giftCardModel.findOne({
         transactionId: orderId,
       });
-      // await this.createGiftCard(giftCard);
+      console.log(giftCard, 'giftCard');
+      await this.createGiftCard(giftCard);
       console.log(giftCard, 'giftCard');
     }
     return status;
@@ -174,7 +175,7 @@ export class GiftCardService {
   ) {
     await this.mailchimpService.updateCampaignDetails(
       process.env.CAMPAIGN_ID,
-      'New Subject Line',
+      'A Gift Card for you',
       email,
       createMailTemplateSchema(recipientName, amount, code),
     );
