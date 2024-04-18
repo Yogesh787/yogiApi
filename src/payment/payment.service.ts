@@ -1,23 +1,19 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import * as CryptoJS from 'crypto-js';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 import { Agent } from 'https';
 
 @Injectable()
 export class PaymentService {
   constructor(private httpService: HttpService) {}
-  paymentUrl = 'https://api.edfapay.com/payment/initiate';
-  // paymentUrl = process.env.EDFA_PAY_URL;
+  paymentUrl = process.env.EDFA_PAY_URL + 'initiate';
   async initiatePayment(orderAmount: number, orderNumber: string) {
-    // const number = '1234567890';
     console.log('initiatePayment');
-    const password = process.env.EDFA_PAY_PASSWORD;
-    // const orderAmount = '1';
     const orderCurrency = 'SAR';
     const orderDescription = 'An order';
     const hashValue = this.generateHash(
-      '9d6fadf5bd3bec15eb57c4b47f09ff52',
+      process.env.EDFA_PAY_PASSWORD,
       orderAmount.toString(),
       orderCurrency,
       orderDescription,
@@ -25,7 +21,7 @@ export class PaymentService {
     );
     const formData = new FormData();
     formData.append('action', 'SALE');
-    formData.append('edfa_merchant_id', 'b8071c63-ee47-4e09-bb73-a0c0f78a2bb9');
+    formData.append('edfa_merchant_id', process.env.EDFA_PAY_API_KEY);
     formData.append('order_id', orderNumber);
     formData.append('order_amount', orderAmount.toString());
     formData.append('order_currency', orderCurrency);
@@ -42,8 +38,7 @@ export class PaymentService {
     formData.append('payer_ip', '45.130.83.149');
     formData.append(
       'term_url_3ds',
-      `http://192.168.10.210:8080/burger-craft/giftCards/${orderNumber}`,
-      // `http://192.168.10.210:5197/payment/callback`,
+      process.env.EDFA_PAY_REDIRECT_URL + orderNumber,
     );
     formData.append('auth', 'N');
     formData.append('recurring_init', 'N');
@@ -86,32 +81,25 @@ export class PaymentService {
 
   async statusCheck(orderId: string) {
     const formData = {
-      merchant_id: 'b8071c63-ee47-4e09-bb73-a0c0f78a2bb9',
+      merchant_id: process.env.EDFA_PAY_API_KEY,
       order_id: orderId,
     };
     const httpsAgent = new Agent({
       rejectUnauthorized: false,
     });
     const response = await this.httpService
-      .post('https://api.edfapay.com/payment/status', formData, {
+      .post(`${process.env.EDFA_PAY_URL}status`, formData, {
         httpsAgent,
       })
       .toPromise()
       .catch((e) => {
-        // console.error(e, e.code, e.cause, 'error in sendRequest');
         console.log('error');
       });
     if (response) {
       console.log('*********', response?.data);
-      // return response?.data;
       return { status: response?.data?.responseBody.status };
     } else {
       console.log('error', response);
     }
   }
 }
-
-// https://pay.expresspay.sa/interaction/f4d6d216-f993-11ee-9b92-12f496fd756f
-// https://pay.expresspay.sa/interaction/5a067d96-fa41-11ee-863f-12f496fd756f
-// https://pay.expresspay.sa/interaction/2c529488-fa42-11ee-9c45-12f496fd756f
-// b53f080e-fa4b-11ee-9eea-12f496fd756f

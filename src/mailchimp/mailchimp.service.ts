@@ -15,7 +15,7 @@ export class MailchimpService {
     htmlContent: string,
   ) {
     // Update campaign settings
-    const settingsUrl = `${process.env.API_URL}/${campaignId}`;
+    const settingsUrl = `${process.env.MAILCHIMP_API_URL}/${campaignId}`;
     const settingsPayload = {
       settings: {
         subject_line: subjectLine,
@@ -34,7 +34,7 @@ export class MailchimpService {
       await lastValueFrom(
         this.httpService.patch(settingsUrl, settingsPayload, {
           auth: {
-            username: process.env.USER_NAME,
+            username: process.env.MAILCHIMP_USER_NAME,
             password: process.env.MAILCHIMP_API_KEY,
           },
           headers: {
@@ -47,7 +47,7 @@ export class MailchimpService {
       await lastValueFrom(
         this.httpService.put(contentUrl, contentPayload, {
           auth: {
-            username: process.env.USER_NAME,
+            username: process.env.MAILCHIMP_USER_NAME,
             password: process.env.MAILCHIMP_API_KEY,
           },
           headers: {
@@ -68,7 +68,7 @@ export class MailchimpService {
     testEmails: string[],
     sendType: string = 'html',
   ): Promise<void> {
-    const url = `${process.env.API_URL}/${campaignId}/actions/test`;
+    const url = `${process.env.MAILCHIMP_API_URL}/${campaignId}/actions/test`;
 
     const data = {
       test_emails: testEmails,
@@ -79,7 +79,7 @@ export class MailchimpService {
       await lastValueFrom(
         this.httpService.post(url, data, {
           auth: {
-            username: process.env.USER_NAME,
+            username: process.env.MAILCHIMP_USER_NAME,
             password: process.env.MAILCHIMP_API_KEY,
           },
           headers: {
@@ -96,13 +96,13 @@ export class MailchimpService {
   }
 
   async getAllCampaigns(): Promise<any> {
-    const url = process.env.API_URL;
+    const url = process.env.MAILCHIMP_API_URL;
 
     try {
       const response = await lastValueFrom(
         this.httpService.get(url, {
           auth: {
-            username: process.env.USER_NAME,
+            username: process.env.MAILCHIMP_USER_NAME,
             password: process.env.MAILCHIMP_API_KEY,
           },
           headers: {
@@ -132,7 +132,7 @@ export class MailchimpService {
   //     const response = await lastValueFrom(
   //       this.httpService.post(url, data, {
   //         auth: {
-  //           username: process.env.USER_NAME,
+  //           username: process.env.MAILCHIMP_USER_NAME,
   //           password: process.env.MAILCHIMP_API_KEY,
   //         },
   //         headers: {
@@ -163,12 +163,12 @@ export class MailchimpService {
   //     },
   //   };
   //
-  //   const url = process.env.API_URL;
+  //   const url = process.env.MAILCHIMP_API_URL;
   //
   //   const response = await lastValueFrom(
   //     this.httpService.post(url, campaignData, {
   //       auth: {
-  //         username: process.env.USER_NAME,
+  //         username: process.env.MAILCHIMP_USER_NAME,
   //         password: process.env.MAILCHIMP_API_KEY,
   //       },
   //       headers: {
@@ -184,7 +184,7 @@ export class MailchimpService {
   //   campaignId: string,
   //   htmlContent: string,
   // ): Promise<void> {
-  //   const url = `${process.env.API_URL}/${campaignId}/content`;
+  //   const url = `${process.env.MAILCHIMP_API_URL}/${campaignId}/content`;
   //
   //   await lastValueFrom(
   //     this.httpService.put(
@@ -192,7 +192,7 @@ export class MailchimpService {
   //       { html: htmlContent },
   //       {
   //         auth: {
-  //           username: process.env.USER_NAME,
+  //           username: process.env.MAILCHIMP_USER_NAME,
   //           password: process.env.MAILCHIMP_API_KEY,
   //         },
   //         headers: {
@@ -204,7 +204,7 @@ export class MailchimpService {
   // }
 
   // async sendCampaign(campaignId: string): Promise<void> {
-  //   const url = `${process.env.API_URL}/${campaignId}/actions/send`;
+  //   const url = `${process.env.MAILCHIMP_API_URL}/${campaignId}/actions/send`;
   //
   //   await lastValueFrom(
   //     this.httpService.post(
@@ -212,7 +212,7 @@ export class MailchimpService {
   //       {},
   //       {
   //         auth: {
-  //           username: process.env.USER_NAME,
+  //           username: process.env.MAILCHIMP_USER_NAME,
   //           password: process.env.MAILCHIMP_API_KEY,
   //         },
   //         headers: {

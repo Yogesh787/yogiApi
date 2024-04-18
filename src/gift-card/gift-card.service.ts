@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CreateGiftCardDto } from './dto/create-gift-card.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { GiftCard, PaymentType } from './schema/gift-card.schema';
@@ -96,11 +95,7 @@ export class GiftCardService {
       ...createGiftCardDto,
     });
     if (!create) throw new Error('Gift Card not created');
-    const payment = await this.payment.initiatePayment(
-      createGiftCardDto.amount,
-      x,
-    );
-    return payment;
+    return await this.payment.initiatePayment(createGiftCardDto.amount, x);
   }
 
   async createRendomNumber(length: number) {
@@ -203,7 +198,7 @@ export class GiftCardService {
         hour: Number(hour),
         minute: Number(minute),
       },
-      async function () {
+      async () => {
         console.log('send mail later to', email);
         await this.sendMail(
           email,
