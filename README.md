@@ -70,6 +70,17 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Limits
+
+- Certificates per Registered Domain (50 per week)
+
+- Duplicate Certificate limit of 5 per week
+
+- Create a maximum of 10 Accounts per IP Address per 3 hours
+
+- Create a maximum of 300 New Orders per account per 3 hours
+
+
 ## Support
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
