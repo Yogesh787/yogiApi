@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AcmeService } from '../acme.service';
+import { AcmeService } from '../domainManagement/acme.service';
 
 @Injectable()
 export class CnameService {

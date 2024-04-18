@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { AcmeService } from './acme.service';
+import { AcmeService } from './domainManagement/acme.service';
 
 @Controller('.well-known/acme-challenge')
 export class AppController {

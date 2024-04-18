@@ -6,19 +6,11 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentModule } from './payment/payment.module';
 import { AppController } from './app.controller';
-import { AcmeService } from './acme.service';
-import { DomainController } from './domain.controller';
 import { CnameModule } from './cname/cname.module';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Domain, DomainSchema } from './schema/domain.schema';
-import { User, UserSchema } from './schema/user.schema';
+import { AcmeModule } from './domainManagement/acme.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Domain.name, schema: DomainSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -29,9 +21,9 @@ import { User, UserSchema } from './schema/user.schema';
     DbModule,
     PaymentModule,
     CnameModule,
+    AcmeModule,
   ],
-  controllers: [AppController, DomainController],
-  providers: [AcmeService],
-  exports: [AcmeService],
+  controllers: [AppController],
+  providers: [],
 })
 export class AppModule {}

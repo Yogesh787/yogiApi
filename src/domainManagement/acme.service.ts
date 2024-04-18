@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import * as acme from 'acme-client';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -12,17 +7,16 @@ import { writeFile } from 'fs/promises';
 import { User } from './schema/user.schema';
 import forge from 'node-forge';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { NodeSSH } from 'node-ssh';
 import { Cron } from '@nestjs/schedule';
-import { promises as fs } from 'fs';
+import {
+  deployNginxConfig,
+  executeScript,
+  syncSslTokens,
+} from './scriptsRunner';
 
 @Injectable()
 export class AcmeService implements OnModuleInit {
   private client: acme.Client;
-  private logger = new Logger(AcmeService.name);
-  private ssh = new NodeSSH();
-  private privateKey: string;
 
   constructor(
     @InjectModel(Domain.name) private readonly domainModel: Model<Domain>,
@@ -149,7 +143,7 @@ export class AcmeService implements OnModuleInit {
       path.join('./src/sslCertificates', `${domain.name}.crt`),
     );
     try {
-      const result = await this.executeScript(
+      const result = await executeScript(
         domain.name,
         'src/script/script.sh',
         domain.accountUrl,
@@ -165,70 +159,10 @@ export class AcmeService implements OnModuleInit {
       //   'src/script/nginx.sh',
       //   domain.accountUrl,
       // );
-      const result = await this.deployNginxConfig(domain.name);
+      const result = await deployNginxConfig(domain.name);
       console.log('Script executed successfully:', result);
     } catch (error) {
       console.error('Failed to execute script:', error);
-    }
-  }
-  async deployNginxConfig(domainName: string): Promise<void> {
-    const server = process.env.SERVER;
-    const [serverUser, serverIp] = server.split('@');
-    const localNginxDir = './src/sslCertificates/';
-    const localNginxDir1 = './src/configuration/';
-    const remoteNginxDir = '/etc/nginx/sites-available/';
-    const certNginxDir = '/etc/nginx/ssl/';
-    fs.readFile('src/script/omnimenu-pwa.pem', 'utf8').then((data) => {
-      this.privateKey = data;
-      // console.log('data', data);
-    });
-    try {
-      this.privateKey = await fs.readFile(
-        'src/script/omnimenu-pwa.pem',
-        'utf8',
-      );
-    } catch (error) {
-      throw new Error('Failed to read file: ' + error.message);
-    }
-
-    try {
-      await this.ssh.connect({
-        host: serverIp,
-        username: serverUser,
-        // privateKey: `/home/yougalkumar/.ssh/id_rsa`,
-        privateKey: this.privateKey,
-      });
-
-      console.log('login success');
-      // Step 1: Sync SSL certificates
-      await this.ssh.putDirectory(localNginxDir, certNginxDir);
-      console.log('SSL Certificates updated successfully');
-
-      // Step 2: Sync Nginx configuration
-      await this.ssh.putDirectory(localNginxDir1, remoteNginxDir);
-      await this.ssh.execCommand(
-        `rm /etc/nginx/sites-enabled/${domainName}.conf && ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
-      );
-      console.log('Nginx configuration updated successfully');
-
-      // Step 3: Check Nginx Configuration
-      const nginxTest = await this.ssh.execCommand('nginx -t');
-      if (nginxTest.code !== 0)
-        throw new Error('Wrong Nginx Configuration: ' + nginxTest.stderr);
-
-      console.log('Nginx Configuration is correct');
-
-      // Step 4: Reload Nginx
-      const reloadNginx = await this.ssh.execCommand('systemctl reload nginx');
-      if (reloadNginx.code !== 0)
-        throw new Error('Failed to reload Nginx: ' + reloadNginx.stderr);
-
-      console.log('Nginx reloaded successfully');
-      console.log('Deployment completed successfully');
-    } catch (error) {
-      console.error('Deployment failed:', error);
-    } finally {
-      this.ssh.dispose();
     }
   }
 
@@ -264,7 +198,7 @@ export class AcmeService implements OnModuleInit {
         //   'src/script/token.sh',
         //   domain.accountUrl,
         // );
-        const result = await this.syncSslTokens();
+        const result = await syncSslTokens();
         console.log('Script executed successfully:', result);
       } catch (error) {
         console.error('Failed to execute script:', error);
@@ -291,99 +225,6 @@ export class AcmeService implements OnModuleInit {
       csr: csr,
     });
     return certificate;
-  }
-
-  async syncSslTokens(): Promise<void> {
-    const server = process.env.SERVER;
-    const [serverUser, serverIp] = server.split('@');
-    const localNginxDir = '/home/yougalkumar/WebstormProjects/ssl/src/tokens/';
-    const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
-
-    try {
-      this.privateKey = await fs.readFile(
-        'src/script/omnimenu-pwa.pem',
-        'utf8',
-      );
-    } catch (error) {
-      throw new Error('Failed to read file: ' + error.message);
-    }
-
-    try {
-      await this.ssh.connect({
-        host: serverIp,
-        username: serverUser,
-        privateKey: this.privateKey,
-      });
-
-      console.log('Connecting to server...');
-
-      // Sync SSL tokens
-      const result = await this.ssh.putDirectory(
-        localNginxDir,
-        remoteNginxDir,
-        {
-          recursive: true,
-          concurrency: 10,
-          validate: function (itemPath) {
-            const baseName = path.basename(itemPath);
-            return baseName.substr(0, 1) !== '.'; // do not allow hidden files
-          },
-          tick: function (localPath, remotePath, error) {
-            if (error) {
-              console.error(
-                'Failed to transfer:',
-                localPath,
-                'to',
-                remotePath,
-                'due to',
-                error,
-              );
-            } else {
-              console.log(
-                `Successfully transferred ${localPath} to ${remotePath}`,
-              );
-            }
-          },
-        },
-      );
-
-      if (!result) {
-        throw new Error('Failed to update Nginx configuration');
-      }
-
-      console.log('Nginx configuration updated successfully');
-      console.log('Upload completed successfully');
-    } catch (error) {
-      console.error('Deployment failed:', error);
-    } finally {
-      this.ssh.dispose();
-    }
-  }
-
-  private async executeScript(
-    domainName: string,
-    path: string,
-    accountUrl: string,
-  ): Promise<any> {
-    console.log(path, 'path');
-    console.log(domainName, 'domainName');
-    const x = await new Promise((resolve, reject) => {
-      exec(`${path} ${domainName} ${accountUrl}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`exec error: ${error}`);
-          reject(error);
-          return;
-        } else if (stderr) {
-          console.error(`stderr: ${stderr}`);
-          reject(stderr);
-          // return;
-        }
-        console.log(`stdout: ${stdout}`);
-        resolve(stdout);
-      });
-    });
-    console.log(x, 'x');
-    return x;
   }
 
   async findAll() {

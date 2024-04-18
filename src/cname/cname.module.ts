@@ -1,10 +1,10 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CnameService } from './cname.service';
 import { CnameController } from './cname.controller';
-import { AppModule } from '../app.module';
+import { AcmeModule } from '../domainManagement/acme.module';
 
 @Module({
-  imports: [forwardRef(() => AppModule)],
+  imports: [AcmeModule],
   controllers: [CnameController],
   providers: [CnameService],
 })
