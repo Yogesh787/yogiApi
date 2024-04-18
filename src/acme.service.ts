@@ -13,11 +13,16 @@ import { User } from './schema/user.schema';
 import forge from 'node-forge';
 import * as path from 'path';
 import { exec } from 'child_process';
+import { NodeSSH } from 'node-ssh';
+import { Cron } from '@nestjs/schedule';
+import { promises as fs } from 'fs';
 
 @Injectable()
 export class AcmeService implements OnModuleInit {
   private client: acme.Client;
   private logger = new Logger(AcmeService.name);
+  private ssh = new NodeSSH();
+  private privateKey: string;
 
   constructor(
     @InjectModel(Domain.name) private readonly domainModel: Model<Domain>,
@@ -27,7 +32,7 @@ export class AcmeService implements OnModuleInit {
     // this.logger.log('ACME client initialized.***');
   }
   onModuleInit() {
-    this.initializeAcmeClient();
+    // this.initializeAcmeClient();
     // this.createUser();
     // console.log(path.resolve(__dirname, '../', '/src/script/script.sh'));
   }
@@ -91,25 +96,25 @@ export class AcmeService implements OnModuleInit {
     });
     if (!domain) throw new Error('Domain not created');
     console.log(domain);
-    // await this.initiateDomainVerification(domain.name);
+    await this.initiateDomainVerification(domain.name);
     return {
       status: 'success',
       message: `Now verify domain ${domain.name} to get certificate.`,
     };
   }
 
-  public async getChallengeResponse(token: string): Promise<string> {
-    console.log(token);
-    console.log({ http01Token: token });
-    const domain = await this.domainModel
-      .findOne({ http01Token: token })
-      .exec();
-    console.log(domain);
-    if (!domain) {
-      throw new Error('Domain not found or challenge response does not exist.');
-    }
-    return domain.http01KeyAuthorization;
-  }
+  // public async getChallengeResponse(token: string): Promise<string> {
+  //   console.log(token);
+  //   console.log({ http01Token: token });
+  //   const domain = await this.domainModel
+  //     .findOne({ http01Token: token })
+  //     .exec();
+  //   console.log(domain);
+  //   if (!domain) {
+  //     throw new Error('Domain not found or challenge response does not exist.');
+  //   }
+  //   return domain.http01KeyAuthorization;
+  // }
 
   async generateCsrAndKey(domainName) {
     const keys = forge.pki.rsa.generateKeyPair(2048);
@@ -155,20 +160,81 @@ export class AcmeService implements OnModuleInit {
     }
     console.log('*******************************');
     try {
-      const result = await this.executeScript(
-        domain.name,
-        'src/script/nginx.sh',
-        domain.accountUrl,
-      );
+      // const result = await this.executeScript(
+      //   domain.name,
+      //   'src/script/nginx.sh',
+      //   domain.accountUrl,
+      // );
+      const result = await this.deployNginxConfig(domain.name);
       console.log('Script executed successfully:', result);
     } catch (error) {
       console.error('Failed to execute script:', error);
     }
   }
+  async deployNginxConfig(domainName: string): Promise<void> {
+    const server = process.env.SERVER;
+    const [serverUser, serverIp] = server.split('@');
+    const localNginxDir = './src/sslCertificates/';
+    const localNginxDir1 = './src/configuration/';
+    const remoteNginxDir = '/etc/nginx/sites-available/';
+    const certNginxDir = '/etc/nginx/ssl/';
+    fs.readFile('src/script/omnimenu-pwa.pem', 'utf8').then((data) => {
+      this.privateKey = data;
+      // console.log('data', data);
+    });
+    try {
+      this.privateKey = await fs.readFile(
+        'src/script/omnimenu-pwa.pem',
+        'utf8',
+      );
+    } catch (error) {
+      throw new Error('Failed to read file: ' + error.message);
+    }
 
-  public async initiateDomainVerification(id: string): Promise<string> {
-    const domain = await this.domainModel.findOne({ _id: id });
-    if (!domain) throw new NotFoundException(`Domain ${id} not found`);
+    try {
+      await this.ssh.connect({
+        host: serverIp,
+        username: serverUser,
+        // privateKey: `/home/yougalkumar/.ssh/id_rsa`,
+        privateKey: this.privateKey,
+      });
+
+      console.log('login success');
+      // Step 1: Sync SSL certificates
+      await this.ssh.putDirectory(localNginxDir, certNginxDir);
+      console.log('SSL Certificates updated successfully');
+
+      // Step 2: Sync Nginx configuration
+      await this.ssh.putDirectory(localNginxDir1, remoteNginxDir);
+      await this.ssh.execCommand(
+        `rm /etc/nginx/sites-enabled/${domainName}.conf && ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
+      );
+      console.log('Nginx configuration updated successfully');
+
+      // Step 3: Check Nginx Configuration
+      const nginxTest = await this.ssh.execCommand('nginx -t');
+      if (nginxTest.code !== 0)
+        throw new Error('Wrong Nginx Configuration: ' + nginxTest.stderr);
+
+      console.log('Nginx Configuration is correct');
+
+      // Step 4: Reload Nginx
+      const reloadNginx = await this.ssh.execCommand('systemctl reload nginx');
+      if (reloadNginx.code !== 0)
+        throw new Error('Failed to reload Nginx: ' + reloadNginx.stderr);
+
+      console.log('Nginx reloaded successfully');
+      console.log('Deployment completed successfully');
+    } catch (error) {
+      console.error('Deployment failed:', error);
+    } finally {
+      this.ssh.dispose();
+    }
+  }
+
+  public async initiateDomainVerification(domainName: string): Promise<string> {
+    const domain = await this.domainModel.findOne({ name: domainName });
+    if (!domain) throw new NotFoundException(`Domain ${domain.name} not found`);
     const { csr, privateKey } = await this.generateCsrAndKey(domain.name);
     await this.convertStringToTextFile(
       privateKey,
@@ -193,11 +259,12 @@ export class AcmeService implements OnModuleInit {
         path.join('./src/tokens', `${challenge.token}`),
       );
       try {
-        const result = await this.executeScript(
-          challenge.token,
-          'src/script/token.sh',
-          domain.accountUrl,
-        );
+        // const result = await this.executeScript(
+        //   challenge.token,
+        //   'src/script/token.sh',
+        //   domain.accountUrl,
+        // );
+        const result = await this.syncSslTokens();
         console.log('Script executed successfully:', result);
       } catch (error) {
         console.error('Failed to execute script:', error);
@@ -226,6 +293,73 @@ export class AcmeService implements OnModuleInit {
     return certificate;
   }
 
+  async syncSslTokens(): Promise<void> {
+    const server = process.env.SERVER;
+    const [serverUser, serverIp] = server.split('@');
+    const localNginxDir = '/home/yougalkumar/WebstormProjects/ssl/src/tokens/';
+    const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
+
+    try {
+      this.privateKey = await fs.readFile(
+        'src/script/omnimenu-pwa.pem',
+        'utf8',
+      );
+    } catch (error) {
+      throw new Error('Failed to read file: ' + error.message);
+    }
+
+    try {
+      await this.ssh.connect({
+        host: serverIp,
+        username: serverUser,
+        privateKey: this.privateKey,
+      });
+
+      console.log('Connecting to server...');
+
+      // Sync SSL tokens
+      const result = await this.ssh.putDirectory(
+        localNginxDir,
+        remoteNginxDir,
+        {
+          recursive: true,
+          concurrency: 10,
+          validate: function (itemPath) {
+            const baseName = path.basename(itemPath);
+            return baseName.substr(0, 1) !== '.'; // do not allow hidden files
+          },
+          tick: function (localPath, remotePath, error) {
+            if (error) {
+              console.error(
+                'Failed to transfer:',
+                localPath,
+                'to',
+                remotePath,
+                'due to',
+                error,
+              );
+            } else {
+              console.log(
+                `Successfully transferred ${localPath} to ${remotePath}`,
+              );
+            }
+          },
+        },
+      );
+
+      if (!result) {
+        throw new Error('Failed to update Nginx configuration');
+      }
+
+      console.log('Nginx configuration updated successfully');
+      console.log('Upload completed successfully');
+    } catch (error) {
+      console.error('Deployment failed:', error);
+    } finally {
+      this.ssh.dispose();
+    }
+  }
+
   private async executeScript(
     domainName: string,
     path: string,
@@ -252,33 +386,8 @@ export class AcmeService implements OnModuleInit {
     return x;
   }
 
-  public async verifyDomain(domainId: string): Promise<boolean> {
-    const domain = await this.domainModel.findById(domainId);
-    if (!domain) throw new Error(`Domain with ID ${domainId} not found.`);
-    const isVerified = domain.verified && domain.certificateStatus === 'active';
-    return isVerified;
-  }
-
   async findAll() {
     return this.domainModel.find();
-  }
-
-  public async checkCertificateStatus(domainName: string): Promise<string> {
-    const domain = await this.domainModel.findOne({ name: domainName }).exec();
-    if (!domain) return 'unknown';
-    return domain.certificateStatus;
-  }
-
-  public async certificate(domainName: string): Promise<string> {
-    const domain = await this.domainModel.findOne({ name: domainName }).exec();
-    if (!domain) return 'unknown';
-    return domain.certificate;
-  }
-
-  async checkCertificateExpiry(domainName: string): Promise<Date> {
-    const domain = await this.domainModel.findOne({ name: domainName });
-    if (!domain) throw new NotFoundException(`Domain ${domainName} not found`);
-    return domain.expiresAt;
   }
 
   async convertStringToTextFile(
@@ -304,35 +413,39 @@ export class AcmeService implements OnModuleInit {
     });
   }
 
-  // Scheduled task to check for and renew certificates nearing expiration
+  private async findDomainsNeedingRenewal(): Promise<Domain[]> {
+    const today = new Date();
+    const expirationThreshold = new Date(today.setDate(today.getDate() + 30)); // Looking 30 days ahead
 
-  // private async findDomainsNeedingRenewal(): Promise<Domain[]> {
-  //   const today = new Date();
-  //   const expirationThreshold = new Date(today.setDate(today.getDate() + 30)); // Looking 30 days ahead
-  //
-  //   return this.domainModel.find({
-  //     expiresAt: { $lte: expirationThreshold },
-  //     verified: true, // Assuming you only want to renew verified domains
-  //   });
-  // }
+    return this.domainModel.find({
+      expiresAt: { $lte: expirationThreshold },
+      verified: true, // Assuming you only want to renew verified domains
+    });
+  }
 
-  public async renewCertificates(domainName: string) {
-    // const domainsNeedingRenewal = await this.findDomainsNeedingRenewal();
-    // for (const domain of domainsNeedingRenewal) {
-    try {
-      await this.initiateDomainVerification(domainName);
-      // Update the domain model with the new certificate status
-      console.log(`Renewed certificate for ${domainName}`);
-    } catch (error) {
-      console.error(`Failed to renew certificate for ${domainName}: ${error}`);
-      // Handle errors appropriately, possibly alerting an admin
+  // cron job to renew certificates
+  @Cron('* * * 1 * *')
+  public async renewCertificates() {
+    console.log('************run**************');
+    const domainsNeedingRenewal = await this.findDomainsNeedingRenewal();
+    for (const domain of domainsNeedingRenewal) {
+      try {
+        await this.initiateDomainVerification(domain.name);
+        // Update the domain model with the new certificate status
+        console.log(`Renewed certificate for ${domain.name}`);
+      } catch (error) {
+        console.error(
+          `Failed to renew certificate for ${domain.name}: ${error}`,
+        );
+        // Handle errors appropriately, possibly alerting an admin
+      }
     }
-    // }
   }
 
   async remove(id: string) {
     const domain = await this.domainModel.findOneAndDelete({ _id: id });
     if (!domain) throw new NotFoundException(`Domain with ID ${id} not found`);
+    await this.revokeCertificate(domain.name);
     return domain;
   }
 }
