@@ -3,22 +3,22 @@ import path from 'path';
 import { exec } from 'child_process';
 import { NodeSSH } from 'node-ssh';
 
+console.log(path.resolve(path.join('src', 'tokens')));
 let privateKey = '';
 const ssh = new NodeSSH();
 export async function syncSslTokens(): Promise<void> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
-  const localNginxDir =
-    '/home/yougalkumar/WebstormProjects/giftCard/src/tokens/';
+  const localNginxDir = path.resolve(path.join('src', 'tokens'));
   const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
 
   try {
     privateKey = await fs.readFile(
-      '/home/yougalkumar/WebstormProjects/giftCard/src/script/omnimenu-pwa.pem',
+      path.resolve(path.join('src', 'script', 'google-test.pem')),
       'utf8',
     );
   } catch (error) {
-    throw new Error('Failed to read file: ' + error.message);
+    throw new Error('Failed to read file: ' + error);
   }
 
   try {
@@ -70,26 +70,17 @@ export async function syncSslTokens(): Promise<void> {
 export async function deployNginxConfig(domainName: string): Promise<void> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
-  const localNginxDir =
-    '/home/yougalkumar/WebstormProjects/giftCard/src/sslCertificates/';
-  const localNginxDir1 =
-    '/home/yougalkumar/WebstormProjects/giftCard/src/configuration/';
+  const localNginxDir = path.resolve(path.join('src', 'sslCertificates'));
+  const localNginxDir1 = path.resolve(path.join('src', 'configuration'));
   const remoteNginxDir = '/etc/nginx/sites-available/';
   const certNginxDir = '/etc/nginx/ssl/';
-  fs.readFile(
-    '/home/yougalkumar/WebstormProjects/giftCard/src/script/omnimenu-pwa.pem',
-    'utf8',
-  ).then((data) => {
-    privateKey = data;
-    // console.log('data', data);
-  });
   try {
     privateKey = await fs.readFile(
-      '/home/yougalkumar/WebstormProjects/giftCard/src/script/omnimenu-pwa.pem',
+      path.resolve(path.join('src', 'script', 'google-test.pem')),
       'utf8',
     );
   } catch (error) {
-    throw new Error('Failed to read file: ' + error.message);
+    throw new Error('Failed to read file: ' + error);
   }
 
   try {
