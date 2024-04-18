@@ -26,7 +26,9 @@ export class AcmeService implements OnModuleInit {
     // this.logger.log('ACME client initialized.***');
   }
   onModuleInit() {
-    // this.initializeAcmeClient();
+    this.initializeAcmeClient().catch((error) => {
+      console.error('Failed to initialize ACME client:', error);
+    });
     // this.createUser();
     // console.log(path.resolve(__dirname, '../', '/src/script/script.sh'));
   }
@@ -68,7 +70,7 @@ export class AcmeService implements OnModuleInit {
   }
 
   async findLatestUser() {
-    const res = await this.userModel.findOne(
+    return this.userModel.findOne(
       {},
       {},
       {
@@ -77,7 +79,6 @@ export class AcmeService implements OnModuleInit {
         },
       },
     );
-    return res;
   }
 
   public async addDomain(name: string, accountUrl: string) {
@@ -110,7 +111,7 @@ export class AcmeService implements OnModuleInit {
   //   return domain.http01KeyAuthorization;
   // }
 
-  async generateCsrAndKey(domainName) {
+  async generateCsrAndKey(domainName: string) {
     const keys = forge.pki.rsa.generateKeyPair(2048);
     const csr = forge.pki.createCertificationRequest();
     csr.publicKey = keys.publicKey;
@@ -207,7 +208,8 @@ export class AcmeService implements OnModuleInit {
       await this.client.completeChallenge(challenge);
       await this.client.waitForValidStatus(challenge);
     }
-    const finalizeOrder = await this.client.finalizeOrder(order, csr);
+    // finalize contain expires date also
+    await this.client.finalizeOrder(order, csr);
     const certificate = await this.client.getCertificate(order);
     await this.convertStringToTextFile(
       certificate,
