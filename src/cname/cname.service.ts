@@ -5,7 +5,7 @@ import axios from 'axios';
 export class CnameService {
   constructor() {
     // this.cname('nbb.ai');
-    this.cnameChecker('custom-domain.nbb.ai');
+    // this.cnameChecker('custom-domain.nbb.ai');
   }
 
   async cname(name: string) {

@@ -26,14 +26,16 @@ export async function removeDomain(domainName: string): Promise<void> {
 
     console.log('login success');
     // Step 1: Sync SSL certificates
-    await ssh.execCommand(`rm /etc/nginx/ssl/${domainName}.crt`);
-    await ssh.execCommand(`rm /etc/nginx/ssl/${domainName}.key`);
+    await ssh.execCommand(`sudo rm /etc/nginx/ssl/${domainName}.crt`);
+    await ssh.execCommand(`sudo rm /etc/nginx/ssl/${domainName}.key`);
     console.log('SSL Certificates remove successfully');
 
     // Step 2: Sync Nginx configuration
-    await ssh.execCommand(`rm /etc/nginx/sites-enabled/${domainName}.conf`);
     await ssh.execCommand(
-      `rm /etc/nginx/sites-sites-available/${domainName}.conf`,
+      `sudo rm /etc/nginx/sites-enabled/${domainName}.conf`,
+    );
+    await ssh.execCommand(
+      `sudo rm /etc/nginx/sites-sites-available/${domainName}.conf`,
     );
     console.log('Nginx configuration remove successfully');
 

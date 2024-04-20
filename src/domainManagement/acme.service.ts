@@ -15,13 +15,16 @@ import {
 } from './scriptsRunner';
 import { removeDomain } from './removeDomain';
 import { Certificates } from './schema/certificates.schema';
-import dns from 'dns';
+// import dns from 'dns';
 import { promisify } from 'util';
 import { CnameService } from '../cname/cname.service';
+// import { UDPClient, TCPClient } from 'dns2';
+import * as instant_dns from 'instant-dns';
 
 @Injectable()
 export class AcmeService implements OnModuleInit {
   private client: acme.Client;
+  dns = instant_dns;
 
   constructor(
     @InjectModel(Domain.name) private readonly domainModel: Model<Domain>,
@@ -29,17 +32,26 @@ export class AcmeService implements OnModuleInit {
     @InjectModel(Certificates.name)
     private readonly certificateModel: Model<Certificates>,
     private readonly cnameService: CnameService,
-  ) {}
-  onModuleInit() {
-    // this.initializeAcmeClient().catch((error) => {
-    //   console.error('Failed to initialize ACME client:', error);
+  ) {
+    // this.checkCname('omnimenu-base.nbb.ai').then((addresses) => {
+    //   console.log('CNAME Record:', addresses);
     // });
+  }
+  onModuleInit() {
+    this.initializeAcmeClient().catch((error) => {
+      console.error('Failed to initialize ACME client:', error);
+    });
     // this.createUser();
-    // dns.resolveCname('google.com', (err, addresses) => {
+    // dns.resolveCname('custom-domain.nbb.ai', (err, addresses) => {
     //   if (err) {
     //     console.error('Error:**', err);
     //     return;
     //   }
+    //   console.log('CNAME Record:', addresses);
+    // });
+    // const resolve = UDPClient();
+    // const resolve = TCPClient();
+    // const x = resolve('nbb.ai').then((addresses) => {
     //   console.log('CNAME Record:', addresses);
     // });
     // this.resolveCname('google.com').then((addresses) => {
@@ -47,17 +59,17 @@ export class AcmeService implements OnModuleInit {
     // });
   }
 
-  async resolveCname(domain: string): Promise<string[]> {
-    const resolveCnameAsync = promisify(dns.resolveCname);
-    try {
-      const records = await resolveCnameAsync(domain);
-      // const records = await dns.promises.resolveCname(domain);
-      console.log(records, 'records');
-      return records;
-    } catch (error) {
-      throw new Error(`Error resolving CNAME records for ${domain}: ${error}`);
-    }
-  }
+  // async resolveCname(domain: string): Promise<string[]> {
+  //   const resolveCnameAsync = promisify(dns.resolveCname);
+  //   try {
+  //     const records = await resolveCnameAsync(domain);
+  //     // const records = await dns.promises.resolveCname(domain);
+  //     console.log(records, 'records');
+  //     return records;
+  //   } catch (error) {
+  //     throw new Error(`Error resolving CNAME records for ${domain}: ${error}`);
+  //   }
+  // }
 
   async initializeAcmeClient() {
     const accountKey = await acme.forge.createPrivateKey();
@@ -107,6 +119,21 @@ export class AcmeService implements OnModuleInit {
     );
   }
 
+  async checkCname(name: string) {
+    const x = await this.dns.resolveCname('omnimenu-custom.nbb.ai');
+    if (!x) {
+      return false;
+    }
+    for (const cname of x) {
+      console.log(cname);
+      if (cname === name + '.') {
+        return true;
+      }
+      continue;
+    }
+    return false;
+  }
+
   public async addDomain(name: string, accountUrl: string) {
     console.log(name);
     const domainExists = await this.domainModel.findOne({ name: name });
@@ -143,7 +170,10 @@ export class AcmeService implements OnModuleInit {
     const domains = await this.domainModel.find({ cnameVerified: false });
     for (const domain of domains) {
       const cnameChecker = await this.cnameService.cnameChecker(domain.name);
-      if (cnameChecker.status === false) {
+      const cnameCheck = await this.checkCname(domain.name);
+      console.log(cnameCheck, 'cnameCheck');
+      // if (cnameChecker.status === false) {
+      if (cnameCheck === false) {
         continue;
       }
       await this.domainModel.findOneAndUpdate(
@@ -157,14 +187,17 @@ export class AcmeService implements OnModuleInit {
     }
   }
 
-  @Cron('*/3 * * * *')
+  @Cron('*/5 * * * *')
   async isCertificateValid() {
     const domains = await this.domainModel.find({ certificateStatus: false });
     for (const domain of domains) {
       if (domain.cnameVerified === false) {
         continue;
       }
-      await this.initiateDomainVerification(domain.name);
+      const x = await this.initiateDomainVerification(domain.name);
+      if (x) {
+        await this.certificateDeploy(domain.name);
+      }
     }
   }
 
@@ -185,7 +218,7 @@ export class AcmeService implements OnModuleInit {
           certificateStatus: true,
           verified: false,
         });
-        await this.certificateDeploy(domain.name);
+        // await this.certificateDeploy(domain.name);
         return true;
       }
     }
@@ -269,7 +302,7 @@ export class AcmeService implements OnModuleInit {
       certificateStatus: true,
     });
     console.log(9);
-    await this.certificateDeploy(domain.name);
+    // await this.certificateDeploy(domain.name);
     return true;
   }
 
@@ -290,15 +323,18 @@ export class AcmeService implements OnModuleInit {
   }
 
   public async certificateDeploy(name: string): Promise<boolean> {
+    console.log(21);
     const domain = await this.domainModel.findOne({ name: name });
     if (!domain) throw new NotFoundException(`Domain ${name} not found`);
     if (!domain.certificateStatus) {
       throw new Error('Certificate not verified');
     }
+    console.log(22);
     if (domain.verified) {
       console.log('Domain already verified');
       return true;
     }
+    console.log(23);
     const certificate: Certificates = await this.certificateModel.findOne({
       _id: domain.name,
     });
@@ -314,26 +350,33 @@ export class AcmeService implements OnModuleInit {
       certificate.certificate,
       path.join('./src/sslCertificates', `${domain.name}.crt`),
     );
+    console.log(24);
     try {
+      console.log(25);
       const result = await executeScript(
         domain.name,
         'src/script/script.sh',
         domain.accountUrl,
       );
+      console.log(26);
       console.log('Script executed successfully:', result);
     } catch (error) {
+      console.log(27);
       console.error('Failed to execute script:', error);
     }
     console.log('*******************************');
     try {
+      console.log(28);
       const result = await deployNginxConfig(domain.name);
       console.log('Script executed successfully:', result);
     } catch (error) {
+      console.log(29);
       console.error('Failed to execute script:', error);
     }
     await this.domainModel.findByIdAndUpdate(domain.id, {
       verified: true,
     });
+    console.log(30);
     return true;
   }
 
