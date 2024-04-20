@@ -14,7 +14,7 @@ export async function syncSslTokens(): Promise<void> {
 
   try {
     privateKey = await fs.readFile(
-      path.resolve(path.join('src', 'script', 'google-test.pem')),
+      path.resolve(path.join('src', 'script', 'omnimenu-pwa.pem')),
       'utf8',
     );
   } catch (error) {
@@ -42,11 +42,11 @@ export async function syncSslTokens(): Promise<void> {
         if (error) {
           console.error(
             'Failed to transfer:',
-            localPath,
-            'to',
-            remotePath,
-            'due to',
-            error,
+            // localPath,
+            // 'to',
+            // remotePath,
+            // 'due to',
+            // error,
           );
         } else {
           console.log(`Successfully transferred ${localPath} to ${remotePath}`);
@@ -61,7 +61,7 @@ export async function syncSslTokens(): Promise<void> {
     console.log('Nginx configuration updated successfully');
     console.log('Upload completed successfully');
   } catch (error) {
-    console.error('Deployment failed:', error);
+    console.error('Deployment failed:');
   } finally {
     ssh.dispose();
   }
@@ -76,7 +76,7 @@ export async function deployNginxConfig(domainName: string): Promise<void> {
   const certNginxDir = '/etc/nginx/ssl/';
   try {
     privateKey = await fs.readFile(
-      path.resolve(path.join('src', 'script', 'google-test.pem')),
+      path.resolve(path.join('src', 'script', 'omnimenu-pwa.pem')),
       'utf8',
     );
   } catch (error) {
@@ -98,7 +98,11 @@ export async function deployNginxConfig(domainName: string): Promise<void> {
 
     // Step 2: Sync Nginx configuration
     await ssh.putDirectory(localNginxDir1, remoteNginxDir);
+    await ssh.execCommand(`rm /etc/nginx/sites-enabled/${domainName}.conf`);
     await ssh.execCommand(
+      `ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
+    );
+    console.log(
       `rm /etc/nginx/sites-enabled/${domainName}.conf && ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
     );
     console.log('Nginx configuration updated successfully');

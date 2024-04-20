@@ -17,11 +17,11 @@ export class DomainController {
     return this.acmeService.findAll();
   }
 
-  @Get(':id/deploy')
-  async certificateDeploy(@Param('id') id: string) {
-    console.log(id);
-    return this.acmeService.certificateDeploy(id);
-  }
+  // @Get(':id/deploy')
+  // async certificateDeploy(@Param('id') id: string) {
+  //   console.log(id);
+  //   return this.acmeService.certificateDeploy(id);
+  // }
 
   @Delete(':id')
   async remove(@Param('id') id: string) {

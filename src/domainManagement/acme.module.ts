@@ -4,13 +4,17 @@ import { Domain, DomainSchema } from './schema/domain.schema';
 import { User, UserSchema } from './schema/user.schema';
 import { DomainController } from './domain.controller';
 import { AcmeService } from './acme.service';
+import { Certificates, CertificatesSchema } from './schema/certificates.schema';
+import { CnameModule } from '../cname/cname.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Domain.name, schema: DomainSchema },
       { name: User.name, schema: UserSchema },
+      { name: Certificates.name, schema: CertificatesSchema },
     ]),
+    CnameModule,
   ],
   controllers: [DomainController],
   providers: [AcmeService],

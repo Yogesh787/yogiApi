@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { CnameService } from './cname.service';
 import { CnameController } from './cname.controller';
-import { AcmeModule } from '../domainManagement/acme.module';
 
 @Module({
-  imports: [AcmeModule],
+  imports: [],
   controllers: [CnameController],
   providers: [CnameService],
+  exports: [CnameService],
 })
 export class CnameModule {}

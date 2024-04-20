@@ -1,28 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { AcmeService } from '../domainManagement/acme.service';
+import axios from 'axios';
 
 @Injectable()
 export class CnameService {
-  constructor(private readonly acmeService: AcmeService) {
-    // this.cname();
-    // this.cnameChecker('');
+  constructor() {
+    // this.cname('nbb.ai');
+    this.cnameChecker('custom-domain.nbb.ai');
   }
 
   async cname(name: string) {
-    const allRecords = await (
-      await import('@layered/dns-records')
-    ).getAllDnsRecords(name);
-    const cnameList = allRecords.filter((x) => x.type === 'CNAME');
+    // const allRecords = await (
+    //   await import('@layered/dns-records')
+    // ).getAllDnsRecords(name);
+    // const cnameList = allRecords.filter((x) => x.type === 'CNAME');
+    const cnameList = await axios.get(`${process.env.CNAME_RECORD_URL}${name}`);
+    // console.log(cnameList.data, 'cnameList');
     return cnameList;
     // return allRecords;
   }
 
   async cnameChecker(cname: string) {
-    const cnameList = await this.cname('static-website-test.nbb.ai/');
+    const cnameList = await this.cname('nbb.ai');
     let isAvailable = false;
-    for (const name of cnameList) {
-      console.log(name);
-      if (cname === name.name) {
+    for (const name of cnameList.data) {
+      // console.log(name);
+      if (cname === name.domain) {
         isAvailable = true;
       }
     }
@@ -31,14 +33,13 @@ export class CnameService {
         'please register first or if you have registered then wait for some time',
       );
       return {
-        status: 'pending',
+        status: false,
         message:
           'please register first or if you have registered then wait for some time',
       };
     }
-    // const x = this.acmeService.initiateDomainVerification(cname);
     return {
-      status: 'verified',
+      status: true,
       message: 'Please proceed with the next step',
     };
   }

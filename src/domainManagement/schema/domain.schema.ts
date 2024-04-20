@@ -10,20 +10,22 @@ export class Domain {
   userId: string;
   @Prop({ type: Boolean })
   verified: boolean;
-  @Prop({ type: String })
-  certificateStatus: string;
-  @Prop({ type: String })
-  http01Token: string;
-  @Prop({ type: String })
-  http01KeyAuthorization: string;
-  @Prop({ type: Date })
-  expiresAt: Date;
-  @Prop({ type: String })
-  certificate: string;
-  @Prop({ type: String })
-  privateKey: string;
-  @Prop({ type: String })
-  csr: string;
+  @Prop({ type: Boolean })
+  certificateStatus: boolean;
+  @Prop({ type: Boolean })
+  cnameVerified: boolean;
+  // @Prop({ type: String })
+  // http01Token: string;
+  // @Prop({ type: String })
+  // http01KeyAuthorization: string;
+  // @Prop({ type: Date })
+  // expiresAt: Date;
+  // @Prop({ type: String })
+  // certificate: string;
+  // @Prop({ type: String })
+  // privateKey: string;
+  // @Prop({ type: String })
+  // csr: string;
   @Prop({ type: String })
   accountUrl: string;
 }
