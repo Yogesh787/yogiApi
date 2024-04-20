@@ -130,7 +130,7 @@ export class AcmeService implements OnModuleInit {
     );
     const cert = await this.initiateDomainVerification(domain.name);
     if (cert) {
-      await this.certificateDeploy(domain.id);
+      await this.certificateDeploy(domain.name);
     }
     return {
       status: 'success',
@@ -152,7 +152,7 @@ export class AcmeService implements OnModuleInit {
       );
       const cert = await this.initiateDomainVerification(domain.name);
       if (cert) {
-        await this.certificateDeploy(domain.id);
+        await this.certificateDeploy(domain.name);
       }
     }
   }
@@ -167,7 +167,7 @@ export class AcmeService implements OnModuleInit {
       await this.initiateDomainVerification(domain.name);
     }
   }
-  bbbbbbbbbbbbb;
+
   public async initiateDomainVerification(
     domainName: string,
   ): Promise<boolean> {
@@ -185,7 +185,7 @@ export class AcmeService implements OnModuleInit {
           certificateStatus: true,
           verified: false,
         });
-        await this.certificateDeploy(domain.id);
+        await this.certificateDeploy(domain.name);
         return true;
       }
     }
@@ -269,7 +269,7 @@ export class AcmeService implements OnModuleInit {
       certificateStatus: true,
     });
     console.log(9);
-    await this.certificateDeploy(domain.id);
+    await this.certificateDeploy(domain.name);
     return true;
   }
 
@@ -284,14 +284,14 @@ export class AcmeService implements OnModuleInit {
         if (domain.certificateStatus === false) {
           continue;
         }
-        await this.certificateDeploy(domain.id);
+        await this.certificateDeploy(domain.name);
       }
     }
   }
 
-  public async certificateDeploy(id: string): Promise<boolean> {
-    const domain = await this.domainModel.findOne({ _id: id });
-    if (!domain) throw new NotFoundException(`Domain ${id} not found`);
+  public async certificateDeploy(name: string): Promise<boolean> {
+    const domain = await this.domainModel.findOne({ name: name });
+    if (!domain) throw new NotFoundException(`Domain ${name} not found`);
     if (!domain.certificateStatus) {
       throw new Error('Certificate not verified');
     }
@@ -299,7 +299,7 @@ export class AcmeService implements OnModuleInit {
       console.log('Domain already verified');
       return true;
     }
-    const certificate = await this.certificateModel.findOne({
+    const certificate: Certificates = await this.certificateModel.findOne({
       _id: domain.name,
     });
     await this.convertStringToTextFile(
@@ -350,32 +350,34 @@ export class AcmeService implements OnModuleInit {
   //   });
   // }
 
-  private async findDomainsNeedingRenewal(): Promise<Domain[]> {
+  private async findDomainsNeedingRenewal(): Promise<Certificates[]> {
     const today = new Date();
     const expirationThreshold = new Date(today.setDate(today.getDate() + 30)); // Looking 30 days ahead
 
     return this.certificateModel.find({
       expiresAt: { $lte: expirationThreshold },
-      verified: true, // Assuming you only want to renew verified domains
+      // verified: true, // Assuming you only want to renew verified domains
     });
   }
 
-  // todo
-  // domain.id not working
-  @Cron('* * * 1 * *')
+  // cron job run in every 15 days
+  @Cron('0 0 */15 * *')
   public async renewCertificates() {
     console.log('************run**************');
     const domainsNeedingRenewal = await this.findDomainsNeedingRenewal();
+    // console.log(domainsNeedingRenewal);
     for (const domain of domainsNeedingRenewal) {
+      console.log(domain._id);
       try {
-        await this.initiateDomainVerification(domain.name);
-        // @ts-ignore
-        await this.certificateDeploy(domain.id);
+        const x = await this.initiateDomainVerification(domain._id);
+        if (x) {
+          await this.certificateDeploy(domain._id);
+        }
         // Update the domain model with the new certificate status
-        console.log(`Renewed certificate for ${domain.name}`);
+        console.log(`Renewed certificate for ${domain._id}`);
       } catch (error) {
         console.error(
-          `Failed to renew certificate for ${domain.name}: ${error}`,
+          `Failed to renew certificate for ${domain._id}: ${error}`,
         );
         // Handle errors appropriately, possibly alerting an admin
       }
