@@ -5,7 +5,6 @@ import { User, UserSchema } from './schema/user.schema';
 import { DomainController } from './domain.controller';
 import { AcmeService } from './acme.service';
 import { Certificates, CertificatesSchema } from './schema/certificates.schema';
-import { CnameModule } from '../cname/cname.module';
 
 @Module({
   imports: [
@@ -14,7 +13,6 @@ import { CnameModule } from '../cname/cname.module';
       { name: User.name, schema: UserSchema },
       { name: Certificates.name, schema: CertificatesSchema },
     ]),
-    CnameModule,
   ],
   controllers: [DomainController],
   providers: [AcmeService],

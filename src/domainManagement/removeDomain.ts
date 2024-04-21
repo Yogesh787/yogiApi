@@ -5,9 +5,13 @@ import { NodeSSH } from 'node-ssh';
 let privateKey = '';
 const ssh = new NodeSSH();
 
-export async function removeDomain(domainName: string): Promise<void> {
+export async function removeDomain(
+  domainName: string,
+  token: string,
+): Promise<void> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
+  const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
   try {
     privateKey = await fs.readFile(
       path.resolve(path.join('src', 'script', 'omnimenu-pwa.pem')),
@@ -26,16 +30,15 @@ export async function removeDomain(domainName: string): Promise<void> {
 
     console.log('login success');
     // Step 1: Sync SSL certificates
-    await ssh.execCommand(`sudo rm /etc/nginx/ssl/${domainName}.crt`);
-    await ssh.execCommand(`sudo rm /etc/nginx/ssl/${domainName}.key`);
+    await ssh.execCommand(`rm ${remoteNginxDir}/${token}`);
+    await ssh.execCommand(`rm /etc/nginx/ssl/${domainName}.crt`);
+    await ssh.execCommand(`rm /etc/nginx/ssl/${domainName}.key`);
     console.log('SSL Certificates remove successfully');
 
     // Step 2: Sync Nginx configuration
+    await ssh.execCommand(`rm /etc/nginx/sites-enabled/${domainName}.conf`);
     await ssh.execCommand(
-      `sudo rm /etc/nginx/sites-enabled/${domainName}.conf`,
-    );
-    await ssh.execCommand(
-      `sudo rm /etc/nginx/sites-sites-available/${domainName}.conf`,
+      `rm /etc/nginx/sites-sites-available/${domainName}.conf`,
     );
     console.log('Nginx configuration remove successfully');
 

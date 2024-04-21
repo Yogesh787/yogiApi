@@ -4,9 +4,4 @@ import { MailchimpService } from './mailchimp.service';
 @Controller('mailchimp')
 export class MailchimpController {
   constructor(private readonly mailchimpService: MailchimpService) {}
-
-  @Get('campaigns')
-  getAllCampaigns() {
-    return this.mailchimpService.getAllCampaigns();
-  }
 }

@@ -5,8 +5,6 @@ import { DbModule } from './database/db.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentModule } from './payment/payment.module';
-import { AppController } from './app.controller';
-import { CnameModule } from './cname/cname.module';
 import { AcmeModule } from './domainManagement/acme.module';
 
 @Module({
@@ -20,10 +18,9 @@ import { AcmeModule } from './domainManagement/acme.module';
     MailchimpModule,
     DbModule,
     PaymentModule,
-    CnameModule,
     AcmeModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [],
 })
 export class AppModule {}

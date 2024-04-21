@@ -6,6 +6,7 @@ import * as schedule from 'node-schedule';
 import { MailchimpService } from '../mailchimp/mailchimp.service';
 import { createMailTemplateSchema } from './schema/mailTemplate';
 import { PaymentService } from '../payment/payment.service';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class GiftCardService {
@@ -17,12 +18,12 @@ export class GiftCardService {
     this.ifNotDelivered();
   }
 
+  @Cron('*/5 * * * *')
   async ifNotDelivered() {
     const giftCards = await this.giftCardModel.find({ isDelivered: false });
     giftCards.forEach((giftCard) => {
       if (giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
-          console.log('send mail Now to', giftCard.from.email);
           this.sendMail(
             giftCard.from.email,
             giftCard.id,
@@ -41,7 +42,6 @@ export class GiftCardService {
               giftCard.from.name,
             );
           } else {
-            console.log('send mail Now to', giftCard.from.email);
             this.sendMail(
               giftCard.from.email,
               giftCard.id,
@@ -53,7 +53,6 @@ export class GiftCardService {
         }
       } else if (!giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
-          console.log('send mail Now to', giftCard.to.email);
           this.sendMail(
             giftCard.to.email,
             giftCard.id,
@@ -68,7 +67,6 @@ export class GiftCardService {
           if (dateTime > now) {
             this.deliverLater(giftCard, giftCard.to.email, giftCard.to.name);
           } else {
-            console.log('send mail Now to', giftCard.to.email);
             this.sendMail(
               giftCard.to.email,
               giftCard.id,
@@ -110,23 +108,18 @@ export class GiftCardService {
 
   async statusCheck(orderId: string) {
     const status = await this.payment.statusCheck(orderId);
-    console.log(status, 'status');
     if (status.status === 'settled') {
       const giftCard = await this.giftCardModel.findOne({
         transactionId: orderId,
       });
-      console.log(giftCard, 'giftCard');
       await this.createGiftCard(giftCard);
-      console.log(giftCard, 'giftCard');
     }
     return status;
   }
 
   async createGiftCard(giftCard) {
     if (giftCard.from.sendToMyself) {
-      console.log(1);
       if (giftCard.delivery.deliverNow) {
-        console.log('send mail Now to', giftCard.from.email);
         await this.sendMail(
           giftCard.from.email,
           giftCard.id,
@@ -135,7 +128,6 @@ export class GiftCardService {
           giftCard.giftCardNumber,
         );
       } else {
-        console.log(3);
         await this.deliverLater(
           giftCard,
           giftCard.from.email,
@@ -143,9 +135,7 @@ export class GiftCardService {
         );
       }
     } else if (!giftCard.from.sendToMyself) {
-      console.log(4);
       if (giftCard.delivery.deliverNow) {
-        console.log('send mail Now to', giftCard.to.email);
         await this.sendMail(
           giftCard.to.email,
           giftCard.id,
@@ -154,7 +144,6 @@ export class GiftCardService {
           giftCard.giftCardNumber,
         );
       } else {
-        console.log(6);
         await this.deliverLater(giftCard, giftCard.to.email, giftCard.to.name);
       }
     }
@@ -174,7 +163,6 @@ export class GiftCardService {
       email,
       createMailTemplateSchema(recipientName, amount, code),
     );
-    console.log(email);
     await this.mailchimpService.sendTestEmail(
       process.env.CAMPAIGN_ID,
       [email],
@@ -199,7 +187,6 @@ export class GiftCardService {
         minute: Number(minute),
       },
       async () => {
-        console.log('send mail later to', email);
         await this.sendMail(
           email,
           create.id,
@@ -219,7 +206,6 @@ export class GiftCardService {
     const giftCard = await this.giftCardModel.findOne({
       giftCardNumber: giftCardNumber,
     });
-    console.log(giftCard, 'giftCard');
     if (!giftCard) throw new Error('Gift Card not found');
     if (giftCard.balance < amount) throw new Error('Insufficient balance');
     if (amount <= 0) throw new Error('Invalid amount');
@@ -249,8 +235,4 @@ export class GiftCardService {
       { new: true },
     );
   }
-
-  // findAll() {
-  //   return this.giftCardModel.find();
-  // }
 }

@@ -20,5 +20,7 @@ export class User {
   createdAt: string;
   @Prop({ type: String })
   status: string;
+  @Prop({ type: String })
+  accountKey: string;
 }
 export const UserSchema = SchemaFactory.createForClass(User);

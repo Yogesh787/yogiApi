@@ -4,8 +4,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 export class Certificates {
   @Prop({ required: true })
   _id: string;
-  // @Prop({ type: String })
-  // certificateStatus: string;
   @Prop({ type: String })
   http01Token: string;
   @Prop({ type: String })

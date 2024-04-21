@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import * as acme from 'acme-client';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Document, Model, Types } from 'mongoose';
 import { Domain } from './schema/domain.schema';
 import { writeFile } from 'fs/promises';
 import { User } from './schema/user.schema';
@@ -15,10 +15,6 @@ import {
 } from './scriptsRunner';
 import { removeDomain } from './removeDomain';
 import { Certificates } from './schema/certificates.schema';
-// import dns from 'dns';
-import { promisify } from 'util';
-import { CnameService } from '../cname/cname.service';
-// import { UDPClient, TCPClient } from 'dns2';
 import * as instant_dns from 'instant-dns';
 
 @Injectable()
@@ -31,79 +27,58 @@ export class AcmeService implements OnModuleInit {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Certificates.name)
     private readonly certificateModel: Model<Certificates>,
-    private readonly cnameService: CnameService,
-  ) {
-    // this.checkCname('omnimenu-base.nbb.ai').then((addresses) => {
-    //   console.log('CNAME Record:', addresses);
-    // });
-  }
+  ) {}
+
   onModuleInit() {
-    this.initializeAcmeClient().catch((error) => {
-      console.error('Failed to initialize ACME client:', error);
+    this.findLatestUser().then((account) => {
+      if (!account) {
+        console.log('No ACME account found. Creating one...');
+        this.createUser().catch((error) => {
+          console.error('Failed to create ACME account:', error);
+        });
+        return;
+      }
+      console.log('Found ACME account:', account);
+      this.initializeAcmeClient(account).catch((error) => {
+        console.error('Failed to initialize ACME client:', error);
+      });
     });
-    // this.createUser();
-    // dns.resolveCname('custom-domain.nbb.ai', (err, addresses) => {
-    //   if (err) {
-    //     console.error('Error:**', err);
-    //     return;
-    //   }
-    //   console.log('CNAME Record:', addresses);
-    // });
-    // const resolve = UDPClient();
-    // const resolve = TCPClient();
-    // const x = resolve('nbb.ai').then((addresses) => {
-    //   console.log('CNAME Record:', addresses);
-    // });
-    // this.resolveCname('google.com').then((addresses) => {
-    //   console.log('CNAME Record:', addresses);
-    // });
   }
 
-  // async resolveCname(domain: string): Promise<string[]> {
-  //   const resolveCnameAsync = promisify(dns.resolveCname);
-  //   try {
-  //     const records = await resolveCnameAsync(domain);
-  //     // const records = await dns.promises.resolveCname(domain);
-  //     console.log(records, 'records');
-  //     return records;
-  //   } catch (error) {
-  //     throw new Error(`Error resolving CNAME records for ${domain}: ${error}`);
-  //   }
-  // }
-
-  async initializeAcmeClient() {
-    const accountKey = await acme.forge.createPrivateKey();
-    console.log(1);
+  async initializeAcmeClient(account) {
+    // const accountKey = await acme.forge.createPrivateKey();
     this.client = new acme.Client({
       directoryUrl: acme.directory.letsencrypt.production, // Use staging for testing
-      accountKey,
+      accountKey: account.accountKey,
     });
-    console.log(2);
-    const account = await this.findLatestUser();
-    console.log(3);
-    await this.client.updateAccount({
+    const user = await this.client.updateAccount({
       ...account,
       termsOfServiceAgreed: true,
     });
-    console.log(4);
+    if (user) {
+      console.log(user, 'user');
+    }
   }
 
   async createUser() {
     const accountKey = await acme.forge.createPrivateKey();
+    const accountKeyString = accountKey.toString();
     this.client = new acme.Client({
       directoryUrl: acme.directory.letsencrypt.production, // Use staging for testing
       accountKey,
     });
+
     try {
       const create = await this.client.createAccount({
         termsOfServiceAgreed: true,
         contact: ['mailto:yougal@gmail.com'], // Replace with your email
       });
-      const user = await this.userModel.create({ ...create });
-      console.log(user, 'user');
-      console.log(create, 'ACME account registered.');
+      const user = await this.userModel.create({
+        ...create,
+        accountKey: accountKeyString,
+      });
     } catch (error) {
-      console.error('Failed to register ACME account:', error);
+      console.error('Failed to register ACME account::', error);
     }
   }
 
@@ -120,74 +95,49 @@ export class AcmeService implements OnModuleInit {
   }
 
   async checkCname(name: string) {
-    const x = await this.dns.resolveCname('omnimenu-custom.nbb.ai');
+    const x = await this.dns.resolveCname(name);
+    console.log(x, 'cname');
+    console.log(name);
     if (!x) {
       return false;
     }
-    for (const cname of x) {
-      console.log(cname);
-      if (cname === name + '.') {
-        return true;
-      }
-      continue;
-    }
-    return false;
+    return x.includes('omnimenu-base.nbb.ai.');
   }
 
   public async addDomain(name: string, accountUrl: string) {
-    console.log(name);
     const domainExists = await this.domainModel.findOne({ name: name });
     if (domainExists) throw new Error('Domain already exists');
     const domain = await this.domainModel.create({
       name: name,
-      userId: '66143ed12bdde3d8cf62d0aa',
       certificateStatus: false,
       accountUrl: accountUrl,
       cnameVerified: false,
     });
+
     if (!domain) throw new Error('Domain not created');
-    console.log(domain);
-    const cnameChecker = await this.cnameService.cnameChecker(name);
-    if (cnameChecker.status === false) {
-      return false;
-    }
-    await this.domainModel.findOneAndUpdate(
-      { _id: domain.id },
-      { cnameVerified: true },
-    );
+
+    await this.checkCnameStatus(domain);
+
     const cert = await this.initiateDomainVerification(domain.name);
     if (cert) {
       await this.certificateDeploy(domain.name);
     }
+
     return {
       status: 'success',
       message: `Now verify domain ${domain.name} to get certificate.`,
     };
   }
 
-  @Cron('*/2 * * * *')
+  @Cron('*/1 * * * *')
   async ifCnameUnverified() {
     const domains = await this.domainModel.find({ cnameVerified: false });
     for (const domain of domains) {
-      const cnameChecker = await this.cnameService.cnameChecker(domain.name);
-      const cnameCheck = await this.checkCname(domain.name);
-      console.log(cnameCheck, 'cnameCheck');
-      // if (cnameChecker.status === false) {
-      if (cnameCheck === false) {
-        continue;
-      }
-      await this.domainModel.findOneAndUpdate(
-        { _id: domain.id },
-        { cnameVerified: true },
-      );
-      const cert = await this.initiateDomainVerification(domain.name);
-      if (cert) {
-        await this.certificateDeploy(domain.name);
-      }
+      await this.checkCnameStatus(domain);
     }
   }
 
-  @Cron('*/5 * * * *')
+  @Cron('*/15 * * * *')
   async isCertificateValid() {
     const domains = await this.domainModel.find({ certificateStatus: false });
     for (const domain of domains) {
@@ -195,9 +145,6 @@ export class AcmeService implements OnModuleInit {
         continue;
       }
       const x = await this.initiateDomainVerification(domain.name);
-      if (x) {
-        await this.certificateDeploy(domain.name);
-      }
     }
   }
 
@@ -206,24 +153,18 @@ export class AcmeService implements OnModuleInit {
   ): Promise<boolean> {
     const domain = await this.domainModel.findOne({ name: domainName });
     if (!domain) throw new NotFoundException(`Domain ${domain.name} not found`);
-    if (domain.certificateStatus) {
-      const certificateData = await this.certificateModel.findOne({
-        id: domain.name,
-        expiresAt: {
-          $lte: new Date(new Date().setDate(new Date().getDate() + 30)),
-        },
-      });
-      if (certificateData) {
-        await this.domainModel.findByIdAndUpdate(domain.id, {
-          certificateStatus: true,
-          verified: false,
-        });
-        // await this.certificateDeploy(domain.name);
-        return true;
-      }
+    const certificateData = await this.certificateModel.findOne({
+      _id: domain.name,
+      expiresAt: {
+        $gte: new Date(new Date().setDate(new Date().getDate() + 30)),
+      },
+    });
+    console.log(certificateData, 'certificateData');
+    if (certificateData) {
+      await this.ifCertificateAvailable(certificateData);
+      return;
     }
     const { csr, privateKey } = await this.generateCsrAndKey(domain.name);
-    console.log(csr, 'csr');
     await this.convertStringToTextFile(
       privateKey,
       path.join('./src/sslCertificates', `${domain.name}.key`),
@@ -231,9 +172,9 @@ export class AcmeService implements OnModuleInit {
     const order = await this.client.createOrder({
       identifiers: [{ type: 'dns', value: domain.name }],
     });
-    console.log(1);
     const authorizations = await this.client.getAuthorizations(order);
     for (const auth of authorizations) {
+      console.log(auth, 'auth');
       const challenge = auth.challenges.find((c) => c.type === 'http-01');
       if (!challenge) continue;
       const keyAuthorization =
@@ -257,13 +198,12 @@ export class AcmeService implements OnModuleInit {
           http01KeyAuthorization: keyAuthorization,
         });
       }
-      console.log(2);
       await this.convertStringToTextFile(
         keyAuthorization,
         path.join('./src/tokens', `${challenge.token}`),
       );
       try {
-        const result = await syncSslTokens();
+        const result = await syncSslTokens(challenge.token);
         console.log('Script executed successfully:');
       } catch (error) {
         console.error('Failed to execute script:');
@@ -276,22 +216,18 @@ export class AcmeService implements OnModuleInit {
       await this.client.waitForValidStatus(challenge);
       console.log(6);
     }
-    // finalize contain expires date also
     await this.client.finalizeOrder(order, csr);
     const certificate = await this.client.getCertificate(order);
     await this.convertStringToTextFile(
       certificate,
       path.join('./src/sslCertificates', `${domain.name}.crt`),
     );
-    console.log(7);
     const cert = forge.pki.certificateFromPem(certificate);
     const expiryDate = cert.validity.notAfter;
-    console.log(8);
     await this.certificateModel.findOneAndUpdate(
       { _id: domain.name },
       {
         expiresAt: expiryDate,
-        // expiresAt: finalizeOrder.expires,
         certificate: certificate,
         privateKey: privateKey,
         csr: csr,
@@ -301,40 +237,59 @@ export class AcmeService implements OnModuleInit {
       verified: false,
       certificateStatus: true,
     });
-    console.log(9);
-    // await this.certificateDeploy(domain.name);
     return true;
   }
 
-  @Cron('*/5 * * * *')
+  async ifCertificateAvailable(certificateData) {
+    const domain = await this.domainModel.findOne({
+      name: certificateData._id,
+    });
+    await this.convertStringToTextFile(
+      certificateData.privateKey,
+      path.join('./src/sslCertificates', `${domain.name}.key`),
+    );
+    await this.convertStringToTextFile(
+      certificateData.http01KeyAuthorization,
+      path.join('./src/tokens', `${certificateData.http01Token}`),
+    );
+    try {
+      const result = await syncSslTokens(certificateData.http01Token);
+      console.log('Script executed successfully:');
+    } catch (error) {
+      console.error('Failed to execute script:');
+    }
+    await this.convertStringToTextFile(
+      certificateData.certificate,
+      path.join('./src/sslCertificates', `${domain.name}.crt`),
+    );
+    await this.domainModel.findByIdAndUpdate(domain.id, {
+      verified: false,
+      certificateStatus: true,
+    });
+    return true;
+  }
+
+  @Cron('*/1 * * * *')
   async checkCertificateDeployStatus() {
     const domains = await this.domainModel.find({ verified: false });
-    if (domains) {
-      for (const domain of domains) {
-        if (domain.cnameVerified === false) {
-          continue;
-        }
-        if (domain.certificateStatus === false) {
-          continue;
-        }
-        await this.certificateDeploy(domain.name);
+    for (const domain of domains) {
+      if (domain.certificateStatus === false) {
+        continue;
       }
+      await this.certificateDeploy(domain.name);
     }
   }
 
   public async certificateDeploy(name: string): Promise<boolean> {
-    console.log(21);
     const domain = await this.domainModel.findOne({ name: name });
     if (!domain) throw new NotFoundException(`Domain ${name} not found`);
     if (!domain.certificateStatus) {
       throw new Error('Certificate not verified');
     }
-    console.log(22);
     if (domain.verified) {
       console.log('Domain already verified');
       return true;
     }
-    console.log(23);
     const certificate: Certificates = await this.certificateModel.findOne({
       _id: domain.name,
     });
@@ -350,48 +305,23 @@ export class AcmeService implements OnModuleInit {
       certificate.certificate,
       path.join('./src/sslCertificates', `${domain.name}.crt`),
     );
-    console.log(24);
     try {
-      console.log(25);
       const result = await executeScript(
         domain.name,
         'src/script/script.sh',
         domain.accountUrl,
       );
-      console.log(26);
-      console.log('Script executed successfully:', result);
     } catch (error) {
-      console.log(27);
       console.error('Failed to execute script:', error);
     }
-    console.log('*******************************');
-    try {
-      console.log(28);
-      const result = await deployNginxConfig(domain.name);
-      console.log('Script executed successfully:', result);
-    } catch (error) {
-      console.log(29);
-      console.error('Failed to execute script:', error);
-    }
+    const result = await deployNginxConfig(domain.name);
+    if (!result) return false;
+    console.log('Script executed successfully:', result);
     await this.domainModel.findByIdAndUpdate(domain.id, {
       verified: true,
     });
-    console.log(30);
     return true;
   }
-
-  // async revokeCertificate(domainName: string): Promise<void> {
-  //   const domain = await this.domainModel.findOne({ name: domainName });
-  //   if (!domain) throw new NotFoundException(`Domain ${domainName} not found`);
-  //   const certificate = await this.certificateModel.findOne({
-  //     id: domain.name,
-  //   });
-  //   await this.client.revokeCertificate(certificate.certificate);
-  //   await this.domainModel.findByIdAndUpdate(domain.id, {
-  //     verified: false,
-  //     certificateStatus: false,
-  //   });
-  // }
 
   private async findDomainsNeedingRenewal(): Promise<Certificates[]> {
     const today = new Date();
@@ -399,30 +329,24 @@ export class AcmeService implements OnModuleInit {
 
     return this.certificateModel.find({
       expiresAt: { $lte: expirationThreshold },
-      // verified: true, // Assuming you only want to renew verified domains
     });
   }
 
   // cron job run in every 15 days
   @Cron('0 0 */15 * *')
   public async renewCertificates() {
-    console.log('************run**************');
     const domainsNeedingRenewal = await this.findDomainsNeedingRenewal();
-    // console.log(domainsNeedingRenewal);
     for (const domain of domainsNeedingRenewal) {
-      console.log(domain._id);
       try {
         const x = await this.initiateDomainVerification(domain._id);
         if (x) {
           await this.certificateDeploy(domain._id);
         }
-        // Update the domain model with the new certificate status
         console.log(`Renewed certificate for ${domain._id}`);
       } catch (error) {
         console.error(
           `Failed to renew certificate for ${domain._id}: ${error}`,
         );
-        // Handle errors appropriately, possibly alerting an admin
       }
     }
   }
@@ -436,7 +360,6 @@ export class AcmeService implements OnModuleInit {
     filename: string,
   ): Promise<void> {
     try {
-      // Writes the content to a file. The file is saved in the root directory of the project.
       await writeFile(filename, content);
       console.log(`File ${filename} has been saved.`);
     } catch (error) {
@@ -447,8 +370,10 @@ export class AcmeService implements OnModuleInit {
   async remove(id: string) {
     const domain = await this.domainModel.findOneAndDelete({ _id: id });
     if (!domain) throw new NotFoundException(`Domain with ID ${id} not found`);
-    // await this.revokeCertificate(domain.name);
-    await removeDomain(domain.name);
+    const certificate = await this.certificateModel.findOne({
+      _id: domain.name,
+    });
+    await removeDomain(domain.name, certificate.http01Token);
     await this.certificateModel.findOneAndDelete({
       id: domain.name,
       expiresAt: {
@@ -473,5 +398,18 @@ export class AcmeService implements OnModuleInit {
     const privateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
 
     return { csr: csrPem, privateKey: privateKeyPem };
+  }
+
+  private async checkCnameStatus(
+    domain: Document<unknown, {}, Domain> & Domain & { _id: Types.ObjectId },
+  ) {
+    const cnameCheck = await this.checkCname(domain.name);
+    if (cnameCheck === false) {
+      return;
+    }
+    await this.domainModel.findOneAndUpdate(
+      { _id: domain.id },
+      { cnameVerified: true },
+    );
   }
 }

@@ -33,7 +33,7 @@ export class PaymentService {
     formData.append('payer_country', 'NY');
     formData.append('payer_city', 'New York');
     formData.append('payer_zip', '10009');
-    formData.append('payer_email', 'yougalkumar1@nbb.ai');
+    formData.append('payer_email', 'example@gmail.com');
     formData.append('payer_phone', '966111234568');
     formData.append('payer_ip', '45.130.83.149');
     formData.append(
@@ -63,6 +63,7 @@ export class PaymentService {
       return response?.data;
     } else {
       console.log(response);
+      throw new Error('error in payment initiation');
     }
   }
 
@@ -75,8 +76,7 @@ export class PaymentService {
   ) {
     const to_md5 = `${orderNumber}${orderAmount}${orderCurrency}${orderDescription}${password}`;
     const hash = CryptoJS.SHA1(CryptoJS.MD5(to_md5.toUpperCase()).toString());
-    const result = CryptoJS.enc.Hex.stringify(hash);
-    return result;
+    return CryptoJS.enc.Hex.stringify(hash);
   }
 
   async statusCheck(orderId: string) {
@@ -93,7 +93,7 @@ export class PaymentService {
       })
       .toPromise()
       .catch((e) => {
-        console.log('error');
+        console.log('error', e);
       });
     if (response) {
       console.log('*********', response?.data);

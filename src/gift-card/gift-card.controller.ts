@@ -7,16 +7,9 @@ import { Response } from 'express';
 export class GiftCardController {
   constructor(private readonly giftCardService: GiftCardService) {}
 
-  // @Get('gift-cards')
-  // findAll() {
-  //   return this.giftCardService.findAll();
-  // }
-
   @Post('gift-card/create')
   async create(@Body() createGiftCardDto: any, @Res() res: Response) {
-    console.log('create');
     const url = await this.giftCardService.create(createGiftCardDto);
-    console.log('url', url.redirect_url);
     res.status(301).redirect(url.redirect_url);
   }
 
@@ -27,7 +20,6 @@ export class GiftCardController {
 
   @Get('status/:orderId')
   async statusCheck(@Param('orderId') orderId: string, @Res() res: Response) {
-    // return this.giftCardService.statusCheck(orderId);
     const x = await this.giftCardService.statusCheck(orderId);
     if (x.status === 'settled') {
       res.status(200).send(x);

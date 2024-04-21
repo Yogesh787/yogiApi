@@ -3,16 +3,14 @@ import path from 'path';
 import { exec } from 'child_process';
 import { NodeSSH } from 'node-ssh';
 
-console.log(path.resolve(path.join('src', 'tokens')));
 let privateKey = '';
 const ssh = new NodeSSH();
-export async function syncSslTokens(): Promise<void> {
+export async function syncSslTokens(token: string): Promise<void> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
   const localNginxDir = path.resolve(path.join('src', 'tokens'));
   const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
 
-  console.log(11);
   try {
     privateKey = await fs.readFile(
       path.resolve(path.join('src', 'script', 'omnimenu-pwa.pem')),
@@ -21,7 +19,6 @@ export async function syncSslTokens(): Promise<void> {
   } catch (error) {
     throw new Error('Failed to read file: ' + error);
   }
-  console.log(12);
 
   try {
     await ssh.connect({
@@ -31,53 +28,26 @@ export async function syncSslTokens(): Promise<void> {
     });
 
     console.log('13 Connecting to server...');
-
-    // Sync SSL tokens
-    await ssh.execCommand('sudo su');
-    const result = await ssh.putDirectory(localNginxDir, remoteNginxDir, {
-      recursive: true,
-      concurrency: 10,
-      validate: function (itemPath) {
-        const baseName = path.basename(itemPath);
-        return baseName.substr(0, 1) !== '.'; // do not allow hidden files
-      },
-      tick: function (localPath, remotePath, error) {
-        if (error) {
-          console.error(
-            'Failed to transfer:',
-            localPath,
-            'to',
-            remotePath,
-            'due to',
-            error,
-          );
-          console.log(14);
-        } else {
-          console.log(15);
-          console.log(`Successfully transferred ${localPath} to ${remotePath}`);
-        }
-      },
-    });
-
-    if (!result) {
-      console.log(16);
-      throw new Error('Failed to update Nginx configuration');
-    }
-
-    console.log(17);
-    console.log('Nginx configuration updated successfully');
-    console.log('Upload completed successfully');
+    await ssh.execCommand(`rm ${remoteNginxDir}/${token}.crt`);
+    await ssh
+      .putFile(localNginxDir + '/' + token, remoteNginxDir + '/' + token)
+      .then(
+        function () {
+          console.log('token add success');
+        },
+        function (error) {
+          console.log("Something's wrong");
+          console.log(error);
+        },
+      );
   } catch (error) {
-    console.log(18);
     console.error('Deployment failed:');
   } finally {
-    console.log(19);
     ssh.dispose();
   }
 }
 
-export async function deployNginxConfig(domainName: string): Promise<void> {
-  console.log(41);
+export async function deployNginxConfig(domainName: string): Promise<boolean> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
   const localNginxDir = path.resolve(path.join('src', 'sslCertificates'));
@@ -85,50 +55,63 @@ export async function deployNginxConfig(domainName: string): Promise<void> {
   const remoteNginxDir = '/etc/nginx/sites-available/';
   const certNginxDir = '/etc/nginx/ssl/';
   try {
-    console.log(42);
     privateKey = await fs.readFile(
       path.resolve(path.join('src', 'script', 'omnimenu-pwa.pem')),
       'utf8',
     );
   } catch (error) {
-    console.log(43);
     throw new Error('Failed to read file: ' + error);
   }
 
   try {
-    console.log(44);
     await ssh.connect({
       host: serverIp,
       username: serverUser,
-      // privateKey: `/home/yougalkumar/.ssh/id_rsa`,
       privateKey: privateKey,
     });
 
     console.log('login success');
     // Step 1: Sync SSL certificates
-    await ssh.execCommand('sudo su');
-    await ssh.putDirectory(localNginxDir, certNginxDir);
-    console.log('SSL Certificates updated successfully');
+    await ssh.execCommand(`rm ${certNginxDir}/${domainName}.crt`);
+    try {
+      await ssh.putFile(
+        localNginxDir + '/' + domainName + '.crt',
+        certNginxDir + domainName + '.crt',
+      );
+      console.log('crt add success');
+    } catch (error) {
+      console.log("Something's wrong");
+      console.log(error);
+      throw new Error('Failed to add crt');
+    }
+
+    await ssh.execCommand(`rm ${certNginxDir}/${domainName}.key`);
+
+    console.log(localNginxDir + '/' + domainName + '.key');
+    await ssh.putFile(
+      localNginxDir + '/' + domainName + '.key',
+      certNginxDir + domainName + '.key',
+    );
+    console.log('key add success');
 
     // Step 2: Sync Nginx configuration
-    console.log(45);
-    await ssh.execCommand('sudo su');
-    await ssh.putDirectory(localNginxDir1, remoteNginxDir);
-    await ssh.execCommand(
-      `sudo rm /etc/nginx/sites-enabled/${domainName}.conf`,
+    await ssh.execCommand(`rm ${remoteNginxDir}/${domainName}.conf`);
+    await ssh.putFile(
+      localNginxDir1 + '/' + domainName + '.conf',
+      remoteNginxDir + domainName + '.conf',
     );
+    console.log('conf add success');
+
+    await ssh.execCommand(`rm /etc/nginx/sites-enabled/${domainName}.conf`);
     await ssh.execCommand(
-      `sudo ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
+      `ln -s /etc/nginx/sites-available/${domainName}.conf /etc/nginx/sites-enabled/`,
     );
-    console.log(46);
     console.log('Nginx configuration updated successfully');
 
     // Step 3: Check Nginx Configuration
     const nginxTest = await ssh.execCommand('nginx -t');
     if (nginxTest.code !== 0)
       throw new Error('Wrong Nginx Configuration: ' + nginxTest.stderr);
-
-    console.log(47);
     console.log('Nginx Configuration is correct');
 
     // Step 4: Reload Nginx
@@ -138,12 +121,11 @@ export async function deployNginxConfig(domainName: string): Promise<void> {
 
     console.log('Nginx reloaded successfully');
     console.log('Deployment completed successfully');
-    console.log(48);
+    return true;
   } catch (error) {
-    console.log(49);
     console.error('Deployment failed:', error);
+    return false;
   } finally {
-    console.log(50);
     ssh.dispose();
   }
 }
@@ -153,9 +135,6 @@ export async function executeScript(
   path: string,
   accountUrl: string,
 ): Promise<any> {
-  console.log(31);
-  console.log(path, 'path');
-  console.log(domainName, 'domainName');
   const x = await new Promise((resolve, reject) => {
     exec(`${path} ${domainName} ${accountUrl}`, (error, stdout, stderr) => {
       if (error) {
@@ -171,7 +150,5 @@ export async function executeScript(
       resolve(stdout);
     });
   });
-  console.log(32);
-  console.log(x, 'x');
   return x;
 }
