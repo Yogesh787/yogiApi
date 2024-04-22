@@ -40,4 +40,6 @@ export class CreateGiftCardDto {
   to: To;
   @IsNotEmpty()
   delivery: Delivery;
+  @IsString()
+  redirectUrl: string;
 }

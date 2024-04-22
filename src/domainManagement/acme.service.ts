@@ -30,19 +30,19 @@ export class AcmeService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // this.findLatestUser().then((account) => {
-    //   if (!account) {
-    //     console.log('No ACME account found. Creating one...');
-    //     this.createUser().catch((error) => {
-    //       console.error('Failed to create ACME account:', error);
-    //     });
-    //     return;
-    //   }
-    //   console.log('Found ACME account:');
-    //   this.initializeAcmeClient(account).catch((error) => {
-    //     console.error('Failed to initialize ACME client:', error);
-    //   });
-    // });
+    this.findLatestUser().then((account) => {
+      if (!account) {
+        console.log('No ACME account found. Creating one...');
+        this.createUser().catch((error) => {
+          console.error('Failed to create ACME account:', error);
+        });
+        return;
+      }
+      console.log('Found ACME account:');
+      this.initializeAcmeClient(account).catch((error) => {
+        console.error('Failed to initialize ACME client:', error);
+      });
+    });
   }
 
   async initializeAcmeClient(account) {

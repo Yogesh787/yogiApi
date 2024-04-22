@@ -16,14 +16,16 @@ export class GiftCardService {
     private readonly payment: PaymentService,
   ) {}
 
-  @Cron('*/5 * * * *')
+  @Cron('*/1 * * * *')
   async ifNotDelivered() {
+    console.log('Cron job started');
     const giftCards = await this.giftCardModel.find({ isDelivered: false });
     for (const giftCard of giftCards) {
-      if (giftCard.status) continue;
+      if (!giftCard.status) continue;
+      console.log(giftCard, 'giftCard');
       if (giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
-          this.sendMail(
+          await this.sendMail(
             giftCard.from.email,
             giftCard.id,
             giftCard.from.name,
@@ -35,13 +37,13 @@ export class GiftCardService {
           const dateTime = new Date(dateTimeString);
           const now = new Date();
           if (dateTime > now) {
-            this.deliverLater(
+            await this.deliverLater(
               giftCard,
               giftCard.from.email,
               giftCard.from.name,
             );
           } else {
-            this.sendMail(
+            await this.sendMail(
               giftCard.from.email,
               giftCard.id,
               giftCard.from.name,
@@ -52,7 +54,7 @@ export class GiftCardService {
         }
       } else if (!giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
-          this.sendMail(
+          await this.sendMail(
             giftCard.to.email,
             giftCard.id,
             giftCard.to.name,
@@ -64,9 +66,13 @@ export class GiftCardService {
           const dateTime = new Date(dateTimeString);
           const now = new Date();
           if (dateTime > now) {
-            this.deliverLater(giftCard, giftCard.to.email, giftCard.to.name);
+            await this.deliverLater(
+              giftCard,
+              giftCard.to.email,
+              giftCard.to.name,
+            );
           } else {
-            this.sendMail(
+            await this.sendMail(
               giftCard.to.email,
               giftCard.id,
               giftCard.to.name,
@@ -92,7 +98,11 @@ export class GiftCardService {
       ...createGiftCardDto,
     });
     if (!create) throw new Error('Gift Card not created');
-    return await this.payment.initiatePayment(createGiftCardDto.amount, x);
+    return await this.payment.initiatePayment(
+      createGiftCardDto.amount,
+      x,
+      createGiftCardDto.redirectUrl,
+    );
   }
 
   async createRendomNumber(length: number) {
@@ -109,17 +119,23 @@ export class GiftCardService {
     console.log(orderId, 'orderId');
     const res = await this.payment.statusCheck(orderId);
     if (!res) throw new Error('Order not found');
+    console.log(res, 'res');
     const giftCard = await this.giftCardModel.findOne({
       transactionId: orderId,
     });
-    const x = await this.giftCardModel.findOneAndUpdate(
+    await this.giftCardModel.findOneAndUpdate(
       { _id: giftCard._id },
       {
         paymentId: res.responseBody.payment_id,
       },
     );
-    console.log(x, 'x');
     if (res?.responseBody.status === 'settled') {
+      await this.giftCardModel.findOneAndUpdate(
+        { _id: giftCard._id },
+        {
+          status: true,
+        },
+      );
       await this.createGiftCard(giftCard);
     }
     return { status: res?.responseBody.status };
@@ -180,11 +196,14 @@ export class GiftCardService {
     );
     if (!y) throw new Error('Failed to send test email');
     console.log('Email sent successfully');
-    await this.giftCardModel.findOneAndUpdate(
-      { _id: id },
-      { isDelivered: true },
-      { new: true },
-    );
+    if (y) {
+      console.log('**************');
+      await this.giftCardModel.findOneAndUpdate(
+        { _id: id },
+        { isDelivered: true },
+        { new: true },
+      );
+    }
     console.log('Gift Card delivered successfully');
   }
 
@@ -220,6 +239,7 @@ export class GiftCardService {
       giftCardNumber: giftCardNumber,
     });
     if (!giftCard) throw new Error('Gift Card not found');
+    if (!giftCard.status) throw new Error('Gift Card not activated');
     if (giftCard.balance < amount) throw new Error('Insufficient balance');
     if (amount <= 0) throw new Error('Invalid amount');
     return this.giftCardModel.findOneAndUpdate(
@@ -236,15 +256,10 @@ export class GiftCardService {
     const giftCard = await this.giftCardModel.findOne({
       giftCardNumber: giftCardNumber,
     });
-    if (giftCard.balance < amount) throw new Error('Insufficient balance');
     if (!giftCard) throw new Error('Gift Card not found');
+    if (!giftCard.status) throw new Error('Gift Card not activated');
+    if (giftCard.balance < amount) throw new Error('Insufficient balance');
     if (amount <= 0) throw new Error('Invalid amount');
-    const response = await this.payment.refundPayment(
-      amount,
-      giftCard.transactionId,
-    );
-    if (!response) throw new Error('Refund failed');
-    console.log(response, 'response');
     return this.giftCardModel.findOneAndUpdate(
       { giftCardNumber: giftCardNumber },
       {

@@ -2,20 +2,22 @@ import { Controller, Get, Post, Body, Param, Req, Res } from '@nestjs/common';
 import { GiftCardService } from './gift-card.service';
 import * as process from 'node:process';
 import { Response } from 'express';
+import { CreateGiftCardDto } from './dto/create-gift-card.dto';
 
-// todo
-// add gift-card in controller
-@Controller()
+@Controller('gift-card')
 export class GiftCardController {
   constructor(private readonly giftCardService: GiftCardService) {}
 
-  @Post('gift-card/create')
-  async create(@Body() createGiftCardDto: any, @Res() res: Response) {
+  @Post('create')
+  async create(
+    @Body() createGiftCardDto: CreateGiftCardDto,
+    @Res() res: Response,
+  ) {
     const url = await this.giftCardService.create(createGiftCardDto);
     res.status(301).redirect(url.redirect_url);
   }
 
-  @Get('gift-card/number/:number')
+  @Get('number/:number')
   findOneByGiftCardNumber(@Param('number') number: string) {
     return this.giftCardService.findOneByGiftCardNumber(number);
   }
@@ -29,7 +31,7 @@ export class GiftCardController {
     res.status(400).send(x);
   }
 
-  @Post('gift-card/payment')
+  @Post('payment')
   payment(
     @Body() data: { giftCardNumber: string; amount: number },
     @Req() req: any,
@@ -39,7 +41,7 @@ export class GiftCardController {
     return this.giftCardService.makePayment(data.giftCardNumber, data.amount);
   }
 
-  @Post('gift-card/refund')
+  @Post('refund')
   refund(
     @Body() data: { giftCardNumber: string; amount: number },
     @Req() req: any,
