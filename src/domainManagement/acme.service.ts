@@ -129,7 +129,7 @@ export class AcmeService implements OnModuleInit {
     };
   }
 
-  @Cron('*/1 * * * *')
+  @Cron('*/2 * * * *')
   async ifCnameUnverified() {
     const domains = await this.domainModel.find({ cnameVerified: false });
     for (const domain of domains) {
@@ -269,7 +269,7 @@ export class AcmeService implements OnModuleInit {
     return true;
   }
 
-  @Cron('*/1 * * * *')
+  @Cron('*/5 * * * *')
   async checkCertificateDeployStatus() {
     const domains = await this.domainModel.find({ verified: false });
     for (const domain of domains) {
