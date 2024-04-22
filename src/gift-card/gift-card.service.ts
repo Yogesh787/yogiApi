@@ -97,11 +97,20 @@ export class GiftCardService {
       ...createGiftCardDto,
     });
     if (!create) throw new Error('Gift Card not created');
+    const xAmount = await this.calculateTotal(createGiftCardDto.amount);
     return await this.payment.initiatePayment(
-      createGiftCardDto.amount,
+      xAmount,
       x,
       createGiftCardDto.redirectUrl,
     );
+  }
+
+  async calculateTotal(customAmount) {
+    if (customAmount <= 150) {
+      return parseFloat(customAmount) + (customAmount * 5) / 100;
+    } else {
+      return parseFloat(customAmount) + 7.5;
+    }
   }
 
   async createRendomNumber(length: number) {
