@@ -63,5 +63,7 @@ export class GiftCard {
   status: boolean;
   @Prop({ type: String })
   transactionId: string;
+  @Prop({ type: String })
+  paymentId: string;
 }
 export const GiftCardSchema = SchemaFactory.createForClass(GiftCard);

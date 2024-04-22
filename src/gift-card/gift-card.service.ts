@@ -14,14 +14,13 @@ export class GiftCardService {
     @InjectModel(GiftCard.name) private giftCardModel: Model<GiftCard>,
     private readonly mailchimpService: MailchimpService,
     private readonly payment: PaymentService,
-  ) {
-    this.ifNotDelivered();
-  }
+  ) {}
 
   @Cron('*/5 * * * *')
   async ifNotDelivered() {
     const giftCards = await this.giftCardModel.find({ isDelivered: false });
-    giftCards.forEach((giftCard) => {
+    for (const giftCard of giftCards) {
+      if (giftCard.status) continue;
       if (giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
           this.sendMail(
@@ -77,7 +76,7 @@ export class GiftCardService {
           }
         }
       }
-    });
+    }
   }
 
   async create(createGiftCardDto: any) {
@@ -107,17 +106,27 @@ export class GiftCardService {
   }
 
   async statusCheck(orderId: string) {
-    const status = await this.payment.statusCheck(orderId);
-    if (status.status === 'settled') {
-      const giftCard = await this.giftCardModel.findOne({
-        transactionId: orderId,
-      });
+    console.log(orderId, 'orderId');
+    const res = await this.payment.statusCheck(orderId);
+    if (!res) throw new Error('Order not found');
+    const giftCard = await this.giftCardModel.findOne({
+      transactionId: orderId,
+    });
+    const x = await this.giftCardModel.findOneAndUpdate(
+      { _id: giftCard._id },
+      {
+        paymentId: res.responseBody.payment_id,
+      },
+    );
+    console.log(x, 'x');
+    if (res?.responseBody.status === 'settled') {
       await this.createGiftCard(giftCard);
     }
-    return status;
+    return { status: res?.responseBody.status };
   }
 
   async createGiftCard(giftCard) {
+    if (giftCard.isDelivered) throw new Error('Gift Card already delivered');
     if (giftCard.from.sendToMyself) {
       if (giftCard.delivery.deliverNow) {
         await this.sendMail(
@@ -157,22 +166,26 @@ export class GiftCardService {
     amount: number,
     code: string,
   ) {
-    await this.mailchimpService.updateCampaignDetails(
+    const x = await this.mailchimpService.updateCampaignDetails(
       process.env.CAMPAIGN_ID,
       'A Gift Card for you',
       email,
       createMailTemplateSchema(recipientName, amount, code),
     );
-    await this.mailchimpService.sendTestEmail(
+    if (!x) throw new Error('Failed to update campaign details');
+    const y = await this.mailchimpService.sendTestEmail(
       process.env.CAMPAIGN_ID,
       [email],
       'html',
     );
+    if (!y) throw new Error('Failed to send test email');
+    console.log('Email sent successfully');
     await this.giftCardModel.findOneAndUpdate(
       { _id: id },
-      { isDelivered: true, status: true },
+      { isDelivered: true },
       { new: true },
     );
+    console.log('Gift Card delivered successfully');
   }
 
   async deliverLater(create, email, name) {
@@ -226,6 +239,12 @@ export class GiftCardService {
     if (giftCard.balance < amount) throw new Error('Insufficient balance');
     if (!giftCard) throw new Error('Gift Card not found');
     if (amount <= 0) throw new Error('Invalid amount');
+    const response = await this.payment.refundPayment(
+      amount,
+      giftCard.transactionId,
+    );
+    if (!response) throw new Error('Refund failed');
+    console.log(response, 'response');
     return this.giftCardModel.findOneAndUpdate(
       { giftCardNumber: giftCardNumber },
       {

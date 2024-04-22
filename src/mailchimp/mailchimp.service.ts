@@ -29,32 +29,31 @@ export class MailchimpService {
 
     try {
       // Update settings
-      await lastValueFrom(
-        this.httpService.patch(settingsUrl, settingsPayload, {
-          auth: {
-            username: process.env.MAILCHIMP_USER_NAME,
-            password: process.env.MAILCHIMP_API_KEY,
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
+      const x = this.httpService.patch(settingsUrl, settingsPayload, {
+        auth: {
+          username: process.env.MAILCHIMP_USER_NAME,
+          password: process.env.MAILCHIMP_API_KEY,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!x) throw new Error('Failed to update campaign settings');
 
       // Update content
-      await lastValueFrom(
-        this.httpService.put(contentUrl, contentPayload, {
-          auth: {
-            username: process.env.MAILCHIMP_USER_NAME,
-            password: process.env.MAILCHIMP_API_KEY,
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
+      const y = this.httpService.put(contentUrl, contentPayload, {
+        auth: {
+          username: process.env.MAILCHIMP_USER_NAME,
+          password: process.env.MAILCHIMP_API_KEY,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!y) throw new Error('Failed to update campaign content');
 
       console.log('Campaign details updated successfully');
+      return true;
     } catch (error) {
       console.error('Failed to update campaign details:');
       throw new Error('Failed to update campaign details');
@@ -65,30 +64,23 @@ export class MailchimpService {
     campaignId: string,
     testEmails: string[],
     sendType: string = 'html',
-  ): Promise<void> {
+  ): Promise<boolean> {
     const url = `${process.env.MAILCHIMP_API_URL}/${campaignId}/actions/test`;
 
     const data = {
       test_emails: testEmails,
       send_type: sendType,
     };
-
-    try {
-      await lastValueFrom(
-        this.httpService.post(url, data, {
-          auth: {
-            username: process.env.MAILCHIMP_USER_NAME,
-            password: process.env.MAILCHIMP_API_KEY,
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
-
-      console.log('Test email sent successfully');
-    } catch (error) {
-      console.error('Failed to send test email');
-    }
+    const x = this.httpService.post(url, data, {
+      auth: {
+        username: process.env.MAILCHIMP_USER_NAME,
+        password: process.env.MAILCHIMP_API_KEY,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!x) throw new Error('Failed to send test email');
+    return true;
   }
 }

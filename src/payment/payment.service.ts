@@ -55,15 +55,39 @@ export class PaymentService {
           ...formData.getHeaders(),
         },
       })
-      .toPromise()
-      .catch((e) => {
-        console.error(e, e.code, e.cause, 'error in sendRequest');
-      });
+      .toPromise();
     if (response) {
+      console.log(response?.data);
       return response?.data;
     } else {
       console.log(response);
       throw new Error('error in payment initiation');
+    }
+  }
+
+  async refundPayment(orderAmount: number, orderNumber: string) {
+    console.log(orderAmount, orderNumber, 'refundPayment');
+    const to_md5 = orderNumber + orderAmount + process.env.EDFA_PAY_PASSWORD;
+    const hash = CryptoJS.SHA1(CryptoJS.MD5(to_md5.toUpperCase()).toString());
+    const result = CryptoJS.enc.Hex.stringify(hash);
+    const data = {
+      // gwayId: '23828b1e-5c55-11ee-9e87-aee84e39de53',
+      order_id: orderNumber,
+      edfa_merchant_id: process.env.EDFA_PAY_API_KEY,
+      hash: result,
+      payer_ip: '45.130.83.149',
+      amount: orderAmount,
+    };
+    try {
+      const response = await this.httpService
+        .post(`${process.env.EDFA_PAY_URL}refund`, data, {
+          maxBodyLength: Infinity,
+        })
+        .toPromise();
+      console.log(JSON.stringify(response.data));
+      return response.data;
+    } catch (error) {
+      throw new Error('error in refund');
     }
   }
 
@@ -93,13 +117,14 @@ export class PaymentService {
       })
       .toPromise()
       .catch((e) => {
-        console.log('error', e);
+        console.log('error');
       });
     if (response) {
       console.log('*********', response?.data);
-      return { status: response?.data?.responseBody.status };
+      return response?.data;
     } else {
-      console.log('error', response);
+      console.log('error');
+      throw new Error('error in status check');
     }
   }
 }
