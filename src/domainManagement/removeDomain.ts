@@ -8,7 +8,7 @@ const ssh = new NodeSSH();
 export async function removeDomain(
   domainName: string,
   token: string,
-): Promise<void> {
+): Promise<boolean> {
   const server = process.env.SERVER;
   const [serverUser, serverIp] = server.split('@');
   const remoteNginxDir = '/var/www/html/.well-known/acme-challenge';
@@ -37,9 +37,7 @@ export async function removeDomain(
 
     // Step 2: Sync Nginx configuration
     await ssh.execCommand(`rm /etc/nginx/sites-enabled/${domainName}.conf`);
-    await ssh.execCommand(
-      `rm /etc/nginx/sites-sites-available/${domainName}.conf`,
-    );
+    await ssh.execCommand(`rm /etc/nginx/sites-available/${domainName}.conf`);
     console.log('Nginx configuration remove successfully');
 
     // Step 3: Check Nginx Configuration
@@ -56,8 +54,10 @@ export async function removeDomain(
 
     console.log('Nginx reloaded successfully');
     console.log('Deployment completed successfully');
+    return true;
   } catch (error) {
     console.error('Deployment failed:', error);
+    return false;
   } finally {
     ssh.dispose();
   }

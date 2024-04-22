@@ -45,7 +45,7 @@ export class AcmeService implements OnModuleInit {
     });
   }
 
-  async initializeAcmeClient(account) {
+  async initializeAcmeClient(account: User) {
     // const accountKey = await acme.forge.createPrivateKey();
     this.client = new acme.Client({
       directoryUrl: acme.directory.letsencrypt.production, // Use staging for testing
@@ -73,7 +73,7 @@ export class AcmeService implements OnModuleInit {
         termsOfServiceAgreed: true,
         contact: ['mailto:yougal@gmail.com'], // Replace with your email
       });
-      const user = await this.userModel.create({
+      await this.userModel.create({
         ...create,
         accountKey: accountKeyString,
       });
@@ -144,7 +144,7 @@ export class AcmeService implements OnModuleInit {
       if (domain.cnameVerified === false) {
         continue;
       }
-      const x = await this.initiateDomainVerification(domain.name);
+      await this.initiateDomainVerification(domain.name);
     }
   }
 
@@ -203,18 +203,14 @@ export class AcmeService implements OnModuleInit {
         path.join('./src/tokens', `${challenge.token}`),
       );
       try {
-        const result = await syncSslTokens(challenge.token);
+        await syncSslTokens(challenge.token);
         console.log('Script executed successfully:');
       } catch (error) {
         console.error('Failed to execute script:');
       }
-      console.log(3);
       await this.client.verifyChallenge(auth, challenge);
-      console.log(4);
       await this.client.completeChallenge(challenge);
-      console.log(5);
       await this.client.waitForValidStatus(challenge);
-      console.log(6);
     }
     await this.client.finalizeOrder(order, csr);
     const certificate = await this.client.getCertificate(order);
@@ -240,7 +236,7 @@ export class AcmeService implements OnModuleInit {
     return true;
   }
 
-  async ifCertificateAvailable(certificateData) {
+  async ifCertificateAvailable(certificateData: Certificates) {
     const domain = await this.domainModel.findOne({
       name: certificateData._id,
     });
@@ -253,7 +249,7 @@ export class AcmeService implements OnModuleInit {
       path.join('./src/tokens', `${certificateData.http01Token}`),
     );
     try {
-      const result = await syncSslTokens(certificateData.http01Token);
+      await syncSslTokens(certificateData.http01Token);
       console.log('Script executed successfully:');
     } catch (error) {
       console.error('Failed to execute script:');
@@ -306,7 +302,7 @@ export class AcmeService implements OnModuleInit {
       path.join('./src/sslCertificates', `${domain.name}.crt`),
     );
     try {
-      const result = await executeScript(
+      await executeScript(
         domain.name,
         'src/script/script.sh',
         domain.accountUrl,
@@ -373,7 +369,8 @@ export class AcmeService implements OnModuleInit {
     const certificate = await this.certificateModel.findOne({
       _id: domain.name,
     });
-    await removeDomain(domain.name, certificate.http01Token);
+    const x = await removeDomain(domain.name, certificate.http01Token);
+    if (!x) throw new Error('Failed to remove domain');
     await this.certificateModel.findOneAndDelete({
       id: domain.name,
       expiresAt: {
