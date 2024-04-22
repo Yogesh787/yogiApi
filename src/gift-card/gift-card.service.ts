@@ -7,6 +7,7 @@ import { MailchimpService } from '../mailchimp/mailchimp.service';
 import { createMailTemplateSchema } from './schema/mailTemplate';
 import { PaymentService } from '../payment/payment.service';
 import { Cron } from '@nestjs/schedule';
+import { CreateGiftCardDto } from './dto/create-gift-card.dto';
 
 @Injectable()
 export class GiftCardService {
@@ -18,11 +19,9 @@ export class GiftCardService {
 
   @Cron('*/1 * * * *')
   async ifNotDelivered() {
-    console.log('Cron job started');
     const giftCards = await this.giftCardModel.find({ isDelivered: false });
     for (const giftCard of giftCards) {
       if (!giftCard.status) continue;
-      console.log(giftCard, 'giftCard');
       if (giftCard.from.sendToMyself) {
         if (giftCard.delivery.deliverNow) {
           await this.sendMail(
@@ -85,7 +84,7 @@ export class GiftCardService {
     }
   }
 
-  async create(createGiftCardDto: any) {
+  async create(createGiftCardDto: CreateGiftCardDto) {
     const result = await this.createRendomNumber(16);
 
     const x = await this.createRendomNumber(12);
@@ -116,10 +115,8 @@ export class GiftCardService {
   }
 
   async statusCheck(orderId: string) {
-    console.log(orderId, 'orderId');
     const res = await this.payment.statusCheck(orderId);
     if (!res) throw new Error('Order not found');
-    console.log(res, 'res');
     const giftCard = await this.giftCardModel.findOne({
       transactionId: orderId,
     });
@@ -230,7 +227,7 @@ export class GiftCardService {
     );
   }
 
-  findOneByGiftCardNumber(number: string) {
+  async findOneByGiftCardNumber(number: string) {
     return this.giftCardModel.findOne({ giftCardNumber: number });
   }
 

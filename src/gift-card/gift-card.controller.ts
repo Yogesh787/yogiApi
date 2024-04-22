@@ -18,17 +18,22 @@ export class GiftCardController {
   }
 
   @Get('number/:number')
-  findOneByGiftCardNumber(@Param('number') number: string) {
-    return this.giftCardService.findOneByGiftCardNumber(number);
+  async findOneByGiftCardNumber(
+    @Param('number') number: string,
+    @Res() res: Response,
+  ) {
+    const x = await this.giftCardService.findOneByGiftCardNumber(number);
+    if (!x) {
+      console.log('Gift card not found');
+      return res.send({ status: 400 });
+    }
+    res.status(200).send(x);
   }
 
   @Get('status/:orderId')
   async statusCheck(@Param('orderId') orderId: string, @Res() res: Response) {
     const x = await this.giftCardService.statusCheck(orderId);
-    if (x.status === 'settled') {
-      res.status(200).send(x);
-    }
-    res.status(400).send(x);
+    res.status(200).send(x);
   }
 
   @Post('payment')

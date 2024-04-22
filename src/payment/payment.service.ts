@@ -8,7 +8,11 @@ import { Agent } from 'https';
 export class PaymentService {
   constructor(private httpService: HttpService) {}
   paymentUrl = process.env.EDFA_PAY_URL + 'initiate';
-  async initiatePayment(orderAmount: number, orderNumber: string) {
+  async initiatePayment(
+    orderAmount: number,
+    orderNumber: string,
+    redirectUrl: string,
+  ) {
     console.log('initiatePayment');
     const orderCurrency = 'SAR';
     const orderDescription = 'An order';
@@ -36,10 +40,7 @@ export class PaymentService {
     formData.append('payer_email', 'example@gmail.com');
     formData.append('payer_phone', '966111234568');
     formData.append('payer_ip', '45.130.83.149');
-    formData.append(
-      'term_url_3ds',
-      process.env.EDFA_PAY_REDIRECT_URL + orderNumber,
-    );
+    formData.append('term_url_3ds', redirectUrl + orderNumber);
     formData.append('auth', 'N');
     formData.append('recurring_init', 'N');
     formData.append('hash', hashValue);
@@ -57,37 +58,9 @@ export class PaymentService {
       })
       .toPromise();
     if (response) {
-      console.log(response?.data);
       return response?.data;
     } else {
-      console.log(response);
       throw new Error('error in payment initiation');
-    }
-  }
-
-  async refundPayment(orderAmount: number, orderNumber: string) {
-    console.log(orderAmount, orderNumber, 'refundPayment');
-    const to_md5 = orderNumber + orderAmount + process.env.EDFA_PAY_PASSWORD;
-    const hash = CryptoJS.SHA1(CryptoJS.MD5(to_md5.toUpperCase()).toString());
-    const result = CryptoJS.enc.Hex.stringify(hash);
-    const data = {
-      // gwayId: '23828b1e-5c55-11ee-9e87-aee84e39de53',
-      order_id: orderNumber,
-      edfa_merchant_id: process.env.EDFA_PAY_API_KEY,
-      hash: result,
-      payer_ip: '45.130.83.149',
-      amount: orderAmount,
-    };
-    try {
-      const response = await this.httpService
-        .post(`${process.env.EDFA_PAY_URL}refund`, data, {
-          maxBodyLength: Infinity,
-        })
-        .toPromise();
-      console.log(JSON.stringify(response.data));
-      return response.data;
-    } catch (error) {
-      throw new Error('error in refund');
     }
   }
 
@@ -115,15 +88,10 @@ export class PaymentService {
       .post(`${process.env.EDFA_PAY_URL}status`, formData, {
         httpsAgent,
       })
-      .toPromise()
-      .catch((e) => {
-        console.log('error');
-      });
+      .toPromise();
     if (response) {
-      console.log('*********', response?.data);
       return response?.data;
     } else {
-      console.log('error');
       throw new Error('error in status check');
     }
   }
