@@ -95,13 +95,11 @@ export class AcmeService implements OnModuleInit {
   }
 
   async checkCname(name: string) {
-    const x = await this.dns.resolveCname(name);
-    console.log(x, 'cname');
-    console.log(name);
+    const x = await this.dns.resolveIp4(name);
     if (!x) {
       return false;
     }
-    return x.includes('omnimenu-base.nbb.ai.');
+    return x.includes('51.112.73.66');
   }
 
   public async addDomain(name: string, accountUrl: string) {
